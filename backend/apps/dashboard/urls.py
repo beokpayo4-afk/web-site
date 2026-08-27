@@ -1,0 +1,36 @@
+from django.urls import path
+
+from apps.dashboard import views
+
+urlpatterns = [
+    path("summary/", views.DashboardHomeView.as_view()),
+    path("products/", views.AdminProductListCreateView.as_view()),
+    path("products/<int:pk>/", views.AdminProductDetailView.as_view()),
+    path("products/<int:pk>/status/", views.AdminProductStatusView.as_view()),
+    path("products/<int:pk>/images/", views.AdminProductImageListCreateView.as_view()),
+    path("products/<int:pk>/images/<int:image_pk>/", views.AdminProductImageDetailView.as_view()),
+    path("categories/", views.AdminCategoryView.as_view()),
+    path("categories/<int:pk>/", views.AdminCategoryDetailView.as_view()),
+    path("brands/", views.AdminBrandView.as_view()),
+    path("brands/<int:pk>/", views.AdminBrandDetailView.as_view()),
+    path("tax-classes/", views.AdminTaxClassView.as_view()),
+    path("inventory/", views.AdminInventoryView.as_view()),
+    path("inventory/<int:pk>/", views.AdminInventoryDetailView.as_view()),
+    path("orders/", views.AdminOrderListView.as_view()),
+    path("orders/<int:pk>/", views.AdminOrderDetailView.as_view()),
+    path("orders/<int:pk>/status/", views.AdminOrderStatusView.as_view()),
+    path("customers/", views.AdminCustomerListView.as_view()),
+    path("customers/<int:pk>/", views.AdminCustomerDetailView.as_view()),
+    path("customers/<int:pk>/orders/", views.AdminCustomerOrdersView.as_view()),
+    path("reviews/", views.AdminReviewListView.as_view()),
+    path("reviews/<int:pk>/moderate/", views.AdminReviewModerateView.as_view()),
+    path("coupons/", views.AdminCouponView.as_view()),
+    path("coupons/<int:pk>/", views.AdminCouponDetailView.as_view()),
+    path("shipping/", views.AdminShipmentListView.as_view()),
+    path("shipping/<int:pk>/", views.AdminShipmentDetailView.as_view()),
+    path("notifications/broadcast/", views.AdminNotificationBroadcastView.as_view()),
+    path("contact-messages/", views.AdminContactListView.as_view()),
+    path("contact-messages/<int:pk>/resolve/", views.AdminContactResolveView.as_view()),
+    path("reports/", views.AdminReportsView.as_view()),
+    path("settings/", views.AdminSettingsView.as_view()),
+]
