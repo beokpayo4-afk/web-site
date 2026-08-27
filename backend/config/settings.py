@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 import os
 import sys
 
@@ -26,7 +27,14 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
-if os.environ.get("VERCEL"):
+
+_ON_VERCEL = bool(
+    os.environ.get("VERCEL")
+    or os.environ.get("VERCEL_ENV")
+    or os.environ.get("VERCEL_URL")
+    or os.environ.get("NOW_REGION")
+)
+if _ON_VERCEL:
     for host in (".vercel.app", ".now.sh"):
         if host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(host)
@@ -34,32 +42,65 @@ if os.environ.get("VERCEL"):
 TESTING = "test" in sys.argv or env.bool("DJANGO_TESTING", default=False)
 
 
-def _database_url() -> str:
-    """Return the first non-empty Postgres URL from known env keys."""
-    for key in ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING"):
-        value = os.environ.get(key, "").strip().strip('"').strip("'")
-        if value:
-            return value
-    return ""
-
-
-_db_url = _database_url()
-_use_sqlite = TESTING or env("DATABASE_ENGINE") == "sqlite" or (os.environ.get("VERCEL") and not _db_url)
-
-if _use_sqlite:
-    DATABASES = {
+def _sqlite_db():
+    return {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": str(BASE_DIR / "db.sqlite3"),
         }
     }
-elif _db_url:
-    # Parse explicitly so an empty DATABASE_URL on Vercel cannot override the default.
-    DATABASES = {"default": env.db_url_config(_db_url)}
-else:
-    DATABASES = {
-        "default": env.db_url_config("postgres://nexora:nexora@localhost:5432/nexora"),
+
+
+def _postgres_from_url(url: str) -> dict | None:
+    """Parse a Postgres URL without django-environ (empty URLs make it warn and fail Vercel)."""
+    raw = (url or "").strip().strip('"').strip("'")
+    if not raw or raw.lower() in {"undefined", "null", "none", "nil", "{}"}:
+        return None
+
+    parsed = urlparse(raw)
+    if (parsed.scheme or "").lower() not in {"postgres", "postgresql", "pgsql", "postgis"}:
+        return None
+
+    name = unquote((parsed.path or "").lstrip("/"))
+    if not name:
+        return None
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": name,
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or ""),
     }
+
+
+def _resolve_databases() -> dict:
+    if TESTING or env("DATABASE_ENGINE") == "sqlite":
+        return _sqlite_db()
+
+    for key in ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING"):
+        config = _postgres_from_url(os.environ.get(key, ""))
+        if config:
+            return {"default": config}
+
+    # Vercel may set DATABASE_URL="" during settings discovery — never call environ.db().
+    if _ON_VERCEL:
+        return _sqlite_db()
+
+    return {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "nexora",
+            "USER": "nexora",
+            "PASSWORD": "nexora",
+            "HOST": "localhost",
+            "PORT": "5432",
+        }
+    }
+
+
+DATABASES = _resolve_databases()
 
 INSTALLED_APPS = [
     "django.contrib.admin",
