@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, useReducedMotion } from 'motion/react'
 
+import { Stagger, StaggerItem } from '@/components/motion/Motion'
 import { buttonClassName } from '@/components/ui/buttonStyles'
 import { Badge } from '@/components/ui/Card'
 import { useAuth } from '@/hooks/useAuth'
@@ -28,6 +30,7 @@ export function ProductCard({ product }: { product: Product }) {
   const { isAuthenticated } = useAuth()
   const cart = useCart()
   const navigate = useNavigate()
+  const reduce = useReducedMotion()
   const inStock = product.stock_quantity > 0
 
   function addToCart() {
@@ -39,10 +42,20 @@ export function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <article className="flex h-full flex-col rounded-xl border border-line bg-white p-3">
+    <motion.article
+      className="flex h-full flex-col rounded-xl border border-line bg-white p-3"
+      whileHover={reduce ? undefined : { y: -4 }}
+      transition={{ duration: 0.25 }}
+    >
       <Link to={`/product/${product.slug}`} className="block overflow-hidden rounded-lg focus-visible:outline-offset-4">
         {product.primary_image ? (
-          <img src={product.primary_image} alt={product.name} className="aspect-square w-full object-cover" />
+          <motion.img
+            src={product.primary_image}
+            alt={product.name}
+            className="aspect-square w-full object-cover"
+            whileHover={reduce ? undefined : { scale: 1.04 }}
+            transition={{ duration: 0.4 }}
+          />
         ) : (
           <ProductArt sku={product.sku} name={product.name} />
         )}
@@ -76,16 +89,18 @@ export function ProductCard({ product }: { product: Product }) {
           </button>
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }
 
 export function ProductGrid({ products }: { products: Product[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <StaggerItem key={product.id} className="h-full">
+          <ProductCard product={product} />
+        </StaggerItem>
       ))}
-    </div>
+    </Stagger>
   )
 }

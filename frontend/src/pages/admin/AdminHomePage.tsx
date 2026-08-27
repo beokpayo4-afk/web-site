@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { motion, useReducedMotion } from 'motion/react'
 
 import { AdminPage } from '@/components/admin/AdminPage'
+import { FadeIn, Stagger, StaggerItem } from '@/components/motion/Motion'
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatMoney, formatStatus } from '@/lib/format'
 import { adminService } from '@/services/admin'
@@ -34,14 +36,17 @@ function StatCard({
 }
 
 function MiniBars({ points }: { points: { day: string; orders: number; revenue: string }[] }) {
+  const reduce = useReducedMotion()
   const max = Math.max(1, ...points.map((point) => point.orders))
   return (
     <div className="flex h-44 items-end gap-1.5">
-      {points.map((point) => (
+      {points.map((point, index) => (
         <div key={point.day} className="flex flex-1 flex-col items-center justify-end gap-1">
-          <div
+          <motion.div
             className="w-full rounded-t-md bg-pine/80"
-            style={{ height: `${Math.max(8, (point.orders / max) * 100)}%` }}
+            initial={reduce ? false : { height: 8 }}
+            animate={{ height: `${Math.max(8, (point.orders / max) * 100)}%` }}
+            transition={{ duration: 0.55, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
             title={`${point.day}: ${point.orders} orders · ${formatMoney(point.revenue)}`}
           />
         </div>
@@ -91,17 +96,33 @@ export function AdminHomePage() {
       {summary.isLoading ? <p className="text-sm text-ink-soft">Loading dashboard…</p> : null}
 
       {data ? (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="Total Products" value={data.products} hint="Published catalogue items" accent="border-l-4 border-l-pine" icon="▣" />
-            <StatCard title="Orders" value={data.orders} hint={`${data.pending_orders} pending`} accent="border-l-4 border-l-clay" icon="☰" />
-            <StatCard title="Customers" value={data.customers} hint="Registered shoppers" accent="border-l-4 border-l-emerald-600" icon="☺" />
-            <StatCard title="Revenue" value={formatMoney(data.revenue)} hint={`Today ${formatMoney(data.today_revenue)}`} accent="border-l-4 border-l-amber-600" icon="₹" />
-            <StatCard title="Paid Orders" value={data.paid_orders} hint="Payment confirmed" accent="border-l-4 border-l-sky-700" icon="✓" />
-            <StatCard title="Delivered" value={data.delivered_orders} hint="Fulfilled orders" accent="border-l-4 border-l-teal-700" icon="↗" />
-            <StatCard title="Low Stock" value={data.low_stock} hint="Below threshold" accent="border-l-4 border-l-orange-600" icon="!" />
-            <StatCard title="Pending Reviews" value={data.pending_reviews} hint="Awaiting moderation" accent="border-l-4 border-l-rose-600" icon="★" />
-          </div>
+        <FadeIn>
+          <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StaggerItem>
+              <StatCard title="Total Products" value={data.products} hint="Published catalogue items" accent="border-l-4 border-l-pine" icon="▣" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Orders" value={data.orders} hint={`${data.pending_orders} pending`} accent="border-l-4 border-l-clay" icon="☰" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Customers" value={data.customers} hint="Registered shoppers" accent="border-l-4 border-l-emerald-600" icon="☺" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Revenue" value={formatMoney(data.revenue)} hint={`Today ${formatMoney(data.today_revenue)}`} accent="border-l-4 border-l-amber-600" icon="₹" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Paid Orders" value={data.paid_orders} hint="Payment confirmed" accent="border-l-4 border-l-sky-700" icon="✓" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Delivered" value={data.delivered_orders} hint="Fulfilled orders" accent="border-l-4 border-l-teal-700" icon="↗" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Low Stock" value={data.low_stock} hint="Below threshold" accent="border-l-4 border-l-orange-600" icon="!" />
+            </StaggerItem>
+            <StaggerItem>
+              <StatCard title="Pending Reviews" value={data.pending_reviews} hint="Awaiting moderation" accent="border-l-4 border-l-rose-600" icon="★" />
+            </StaggerItem>
+          </Stagger>
 
           <div className="mt-5 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
             <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
@@ -196,7 +217,7 @@ export function AdminHomePage() {
               </div>
             </section>
           </div>
-        </>
+        </FadeIn>
       ) : null}
     </AdminPage>
   )
