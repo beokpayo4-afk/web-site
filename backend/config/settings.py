@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from pathlib import Path
+import os
 import sys
 
 import environ
@@ -25,8 +26,40 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+if os.environ.get("VERCEL"):
+    for host in (".vercel.app", ".now.sh"):
+        if host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(host)
 
 TESTING = "test" in sys.argv or env.bool("DJANGO_TESTING", default=False)
+
+
+def _database_url() -> str:
+    """Return the first non-empty Postgres URL from known env keys."""
+    for key in ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING"):
+        value = os.environ.get(key, "").strip().strip('"').strip("'")
+        if value:
+            return value
+    return ""
+
+
+_db_url = _database_url()
+_use_sqlite = TESTING or env("DATABASE_ENGINE") == "sqlite" or (os.environ.get("VERCEL") and not _db_url)
+
+if _use_sqlite:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+elif _db_url:
+    # Parse explicitly so an empty DATABASE_URL on Vercel cannot override the default.
+    DATABASES = {"default": env.db_url_config(_db_url)}
+else:
+    DATABASES = {
+        "default": env.db_url_config("postgres://nexora:nexora@localhost:5432/nexora"),
+    }
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -80,18 +113,6 @@ TEMPLATES = [
         },
     },
 ]
-
-if TESTING or env("DATABASE_ENGINE") == "sqlite":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-else:
-    DATABASES = {
-        "default": env.db("DATABASE_URL", default="postgres://nexora:nexora@localhost:5432/nexora")
-    }
 
 AUTH_USER_MODEL = "accounts.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
