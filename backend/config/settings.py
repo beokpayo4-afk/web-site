@@ -21,8 +21,14 @@ env = environ.Env(
     PAYMENT_PROVIDER=(str, "mock"),
 )
 
-environ.Env.read_env(ROOT_DIR / ".env")
-environ.Env.read_env(BASE_DIR / ".env")
+if not (
+    os.environ.get("VERCEL")
+    or os.environ.get("VERCEL_ENV")
+    or os.environ.get("VERCEL_URL")
+    or os.environ.get("NOW_REGION")
+):
+    environ.Env.read_env(ROOT_DIR / ".env")
+    environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
 DEBUG = env("DJANGO_DEBUG")
