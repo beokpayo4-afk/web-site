@@ -7,7 +7,6 @@ import os
 import sys
 
 import environ
-from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ROOT_DIR = BASE_DIR.parent
@@ -77,7 +76,6 @@ def _postgres_from_url(url: str) -> dict | None:
 
 
 def _resolve_databases() -> dict:
-    # SQLite is only for tests or an explicit local choice — never a silent Vercel fallback.
     if TESTING or env("DATABASE_ENGINE") == "sqlite":
         return _sqlite_db()
 
@@ -87,11 +85,9 @@ def _resolve_databases() -> dict:
             return {"default": config}
 
     if _ON_VERCEL:
-        raise ImproperlyConfigured(
-            "A Postgres DATABASE_URL (or POSTGRES_URL) is required on Vercel. "
-            "SQLite cannot persist on Vercel's ephemeral filesystem. "
-            "Set DATABASE_URL in the Vercel project environment variables."
-        )
+        # Vercel imports settings during build/collectstatic before runtime env is wired.
+        # Use ephemeral SQLite so deploy can finish; VercelDatabaseGuardMiddleware blocks live API traffic.
+        return _sqlite_db()
 
     return {
         "default": {
@@ -132,6 +128,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.common.middleware.VercelDatabaseGuardMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
