@@ -14,7 +14,18 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'react-vendor', test: /[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ },
+            { name: 'motion-vendor', test: /[\\/]node_modules[\\/](motion|framer-motion)[\\/]/ },
+            { name: 'query-vendor', test: /[\\/]node_modules[\\/](@tanstack|axios)[\\/]/ },
+          ],
+        },
+      },
+    },
   },
   server: {
     port: 5173,
