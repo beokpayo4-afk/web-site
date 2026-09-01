@@ -1,5 +1,12 @@
 """ASGI entrypoint: FastAPI at /api/v2, Django (including /api/v1) at /."""
 
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from fastapi import FastAPI, Response
 
 from config.asgi import application as django_asgi
