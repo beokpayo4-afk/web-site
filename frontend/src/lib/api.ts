@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosHeaders, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 import { notifyAuthExpired } from '@/lib/authEvents'
 import { tokenStore } from '@/lib/tokenStore'
@@ -14,6 +14,22 @@ export const api = axios.create({
   baseURL: API_BASE,
   timeout: 15000,
 })
+
+let refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken() {
+  const refresh = tokenStore.getRefresh()
+  if (!refresh) return null
+  const { data } = await axios.post<{ access: string; refresh?: string }>(`${API_BASE}/auth/refresh/`, { refresh })
+  tokenStore.set(data.access, data.refresh)
+  return data.access
+}
+
+function shouldAttemptRefresh(config?: RetryConfig) {
+  if (!config || config.__retried) return false
+  const path = config.url ?? ''
+  return !AUTH_NO_REFRESH.some((fragment) => path.includes(fragment))
+}
 
 api.interceptors.request.use(async (config) => {
   let token = tokenStore.getValidAccess()
@@ -37,22 +53,6 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-let refreshPromise: Promise<string | null> | null = null
-
-async function refreshAccessToken() {
-  const refresh = tokenStore.getRefresh()
-  if (!refresh) return null
-  const { data } = await axios.post<{ access: string; refresh?: string }>(`${API_BASE}/auth/refresh/`, { refresh })
-  tokenStore.set(data.access, data.refresh)
-  return data.access
-}
-
-function shouldAttemptRefresh(config?: RetryConfig) {
-  if (!config || config.__retried) return false
-  const path = config.url ?? ''
-  return !AUTH_NO_REFRESH.some((fragment) => path.includes(fragment))
-}
-
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
@@ -64,17 +64,19 @@ api.interceptors.response.use(
           refreshPromise = null
         })
         const access = await refreshPromise
-        if (access && original.headers) {
-          original.headers.Authorization = `Bearer ${access}`
-          return api.request(original)
+        if (!access) {
+          tokenStore.clear()
+          notifyAuthExpired()
+          return Promise.reject(error)
         }
+        original.headers = AxiosHeaders.from(original.headers ?? {})
+        original.headers.set('Authorization', `Bearer ${access}`)
+        return api.request(original)
       } catch {
         tokenStore.clear()
         notifyAuthExpired()
         return Promise.reject(error)
       }
-      tokenStore.clear()
-      notifyAuthExpired()
     }
     return Promise.reject(error)
   },
