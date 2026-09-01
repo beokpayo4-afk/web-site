@@ -15,10 +15,24 @@ export const api = axios.create({
   timeout: 15000,
 })
 
-api.interceptors.request.use((config) => {
-  const token = tokenStore.getAccess()
+api.interceptors.request.use(async (config) => {
+  let token = tokenStore.getValidAccess()
+  if (!token && tokenStore.getRefresh() && shouldAttemptRefresh(config as RetryConfig)) {
+    try {
+      refreshPromise ??= refreshAccessToken().finally(() => {
+        refreshPromise = null
+      })
+      token = await refreshPromise
+    } catch {
+      tokenStore.clear()
+      notifyAuthExpired()
+      token = null
+    }
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  } else {
+    delete config.headers.Authorization
   }
   return config
 })
