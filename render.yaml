@@ -5,6 +5,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
+    # Dashboard "Start Command" must match this (not ./run-dev.sh).
     startCommand: bash start.sh
     envVars:
       - key: PYTHON_VERSION
