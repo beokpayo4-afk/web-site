@@ -40,10 +40,19 @@ _ON_VERCEL = bool(
     or os.environ.get("VERCEL_URL")
     or os.environ.get("NOW_REGION")
 )
+_ON_RENDER = bool(os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_HOSTNAME"))
+
 if _ON_VERCEL:
     for host in (".vercel.app", ".now.sh"):
         if host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(host)
+
+if _ON_RENDER:
+    if ".onrender.com" not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(".onrender.com")
+    render_host = (os.environ.get("RENDER_EXTERNAL_HOSTNAME") or "").strip()
+    if render_host and render_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(render_host)
 
 TESTING = "test" in sys.argv or env.bool("DJANGO_TESTING", default=False)
 
