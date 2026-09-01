@@ -3,10 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(cd .. && pwd)"
-if [[ -x "$ROOT/.venv/Scripts/python.exe" ]]; then
-  PYTHON="$ROOT/.venv/Scripts/python.exe"
-elif [[ -x "$ROOT/.venv/bin/python" ]]; then
+if [[ -x "$ROOT/.venv/bin/python" ]]; then
   PYTHON="$ROOT/.venv/bin/python"
+elif [[ -x "$ROOT/.venv/Scripts/python.exe" ]]; then
+  PYTHON="$ROOT/.venv/Scripts/python.exe"
 else
   PYTHON="${PYTHON:-python}"
 fi
