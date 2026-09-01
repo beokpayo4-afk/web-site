@@ -17,5 +17,5 @@ export function ApiStatus() {
     return <p className="text-sm text-good">API status: ok</p>
   }
 
-  return <p className="text-sm text-red-700">API is unreachable. Start the Django server on port 8000.</p>
+  return <p className="text-sm text-red-700">API is unreachable. Check that the backend is running and VITE_API_URL is set correctly.</p>
 }

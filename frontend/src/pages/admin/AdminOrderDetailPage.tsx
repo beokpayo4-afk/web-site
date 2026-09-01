@@ -73,8 +73,8 @@ export function AdminOrderDetailPage() {
 
       {order.isError && !data ? (
         <p className="text-sm text-ink-soft">
-          Could not load order details. Confirm the API is running on port 8001 and{' '}
-          <code className="rounded bg-paper-2 px-1">VITE_API_BASE_URL</code> matches your backend.
+          Could not load order details. Confirm the API is running and{' '}
+          <code className="rounded bg-paper-2 px-1">VITE_API_URL</code> points to your backend.
         </p>
       ) : null}
 

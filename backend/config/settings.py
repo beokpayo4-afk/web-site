@@ -207,12 +207,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-CORS_ALLOWED_ORIGINS = list(
-    env.list(
-        "DJANGO_CORS_ALLOWED_ORIGINS",
-        default=["http://localhost:5173", "http://localhost:5174"],
-    )
-)
+from config.cors_origins import build_cors_origin_regexes, build_cors_origins
+
+CORS_ALLOWED_ORIGINS = build_cors_origins()
+CORS_ALLOWED_ORIGIN_REGEXES = build_cors_origin_regexes()
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 if _ON_RENDER:

@@ -13,4 +13,7 @@ services:
       - key: DJANGO_DEBUG
         value: "false"
       - key: DJANGO_ALLOWED_HOSTS
-        value: ".onrender.com,web-site-n1vp.onrender.com"
+        value: ".onrender.com,web-site-1-wecz.onrender.com"
+      # Set to your exact Vercel production URL (also allows *.vercel.app via regex on Render).
+      # - key: FRONTEND_URL
+      #   value: "https://your-app.vercel.app"

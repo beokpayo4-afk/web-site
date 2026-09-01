@@ -4,7 +4,13 @@ import { notifyAuthExpired } from '@/lib/authEvents'
 import { tokenStore } from '@/lib/tokenStore'
 import type { ApiError } from '@/types/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8001/api/v1'
+/** Backend origin (no path). Set VITE_API_URL in Vercel / frontend/.env for production. */
+export function getApiRoot(): string {
+  return (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8001').replace(/\/+$/, '')
+}
+
+/** Django REST API base — all existing services use paths relative to /api/v1/. */
+const API_BASE = `${getApiRoot()}/api/v1`
 
 const AUTH_NO_REFRESH = ['/auth/login/', '/auth/register/', '/auth/refresh/', '/auth/forgot-password/', '/auth/reset-password/']
 

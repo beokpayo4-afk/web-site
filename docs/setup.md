@@ -32,8 +32,10 @@ If the password contains `@`, encode it as `%40` in the URL.
 Frontend:
 
 ```
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_API_URL=http://127.0.0.1:8001
 ```
+
+Production (Vercel): set `VITE_API_URL=https://web-site-1-wecz.onrender.com`.
 
 ### 2. PostgreSQL (once)
 
