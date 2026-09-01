@@ -30,15 +30,23 @@ function ElectronicsMenu() {
   }, [])
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div
+      ref={wrapRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <button
         type="button"
-        className={open ? 'text-pine' : 'text-ink-soft hover:text-ink'}
+        className={`inline-flex items-center gap-1 ${open ? 'text-pine' : 'text-ink-soft hover:text-ink'}`}
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpen((value) => !value)}
       >
         Electronics
+        <span aria-hidden className="text-[0.65rem] leading-none">
+          ▼
+        </span>
       </button>
       {open ? (
         <div className="absolute left-0 top-full z-40 mt-2 min-w-56 rounded-xl border border-line bg-white py-2 shadow-lg">

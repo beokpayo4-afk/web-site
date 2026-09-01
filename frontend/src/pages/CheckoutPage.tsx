@@ -31,6 +31,7 @@ export function CheckoutPage() {
   const selected = addresses.find((row) => row.id === selectedId)
   const [couponDraft, setCouponDraft] = useState('')
   const [coupon, setCoupon] = useState('')
+  const [couponMessage, setCouponMessage] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
@@ -138,20 +139,38 @@ export function CheckoutPage() {
             <label className="block text-sm font-medium" htmlFor="coupon">
               Coupon
             </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
               <input
                 id="coupon"
                 value={couponDraft}
-                onChange={(event) => setCouponDraft(event.target.value)}
+                onChange={(event) => {
+                  setCouponDraft(event.target.value)
+                  setCouponMessage('')
+                }}
                 className="w-full rounded-xl border border-line px-3 py-2.5 text-sm"
                 placeholder="NEXORA10"
                 autoComplete="off"
               />
-              <Button type="button" variant="ghost" onClick={() => setCoupon(couponDraft.trim())}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="shrink-0 sm:min-w-28"
+                disabled={!couponDraft.trim()}
+                onClick={() => {
+                  const code = couponDraft.trim()
+                  if (!code) return
+                  setCoupon(code)
+                  setCouponMessage(`Coupon “${code}” applied — totals will update below.`)
+                }}
+              >
                 Apply
               </Button>
             </div>
-            {coupon ? <p className="mt-2 text-xs text-ink-soft">Applied: {coupon}</p> : null}
+            {coupon ? <p className="mt-2 text-xs font-medium text-pine">Active coupon: {coupon}</p> : null}
+            {couponMessage ? <p className="mt-2 text-xs text-ink-soft">{couponMessage}</p> : null}
+            {coupon && preview.isError ? (
+              <p className="mt-2 text-xs text-red-700">{getErrorMessage(preview.error, 'That coupon could not be applied.')}</p>
+            ) : null}
             <label className="mt-4 block text-sm font-medium" htmlFor="notes">
               Order notes
             </label>

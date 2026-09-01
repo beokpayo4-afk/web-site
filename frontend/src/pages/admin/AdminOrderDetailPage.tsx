@@ -57,6 +57,7 @@ export function AdminOrderDetailPage() {
 
   const data = order.data
   const options = data?.next_statuses ?? []
+  const selectedStatus = nextStatus || options[0] || ''
 
   return (
     <AdminPage
@@ -69,6 +70,13 @@ export function AdminOrderDetailPage() {
       }
     >
       {order.isLoading ? <p className="text-sm text-ink-soft">Loading order…</p> : null}
+
+      {order.isError && !data ? (
+        <p className="text-sm text-ink-soft">
+          Could not load order details. Confirm the API is running on port 8001 and{' '}
+          <code className="rounded bg-paper-2 px-1">VITE_API_BASE_URL</code> matches your backend.
+        </p>
+      ) : null}
 
       {data ? (
         <div className="space-y-5">
@@ -88,33 +96,49 @@ export function AdminOrderDetailPage() {
             <p className="font-display text-3xl">{formatMoney(data.grand_total)}</p>
           </Card>
 
-          <Card className="space-y-3">
-            <h2 className="font-display text-xl">Fulfilment</h2>
+          <Card className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-display text-xl">Fulfilment</h2>
+              {data ? (
+                <p className="text-sm text-ink-soft">
+                  Current: <span className="font-semibold text-ink">{formatStatus(data.status)}</span>
+                </p>
+              ) : null}
+            </div>
             <OrderTimeline status={data.status} />
             {options.length ? (
-              <div className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
-                <Select
-                  label="Update status"
-                  value={nextStatus || options[0]}
-                  onChange={(event) => setNextStatus(event.target.value)}
-                  className="min-w-48"
-                >
-                  {options.map((status) => (
-                    <option key={status} value={status}>
-                      {formatStatus(status)}
-                    </option>
-                  ))}
-                </Select>
-                <Button
-                  type="button"
-                  disabled={updateStatus.isPending}
-                  onClick={() => updateStatus.mutate(nextStatus || options[0])}
-                >
-                  {updateStatus.isPending ? 'Updating…' : 'Apply status'}
-                </Button>
+              <div className="space-y-3 border-t border-line pt-4">
+                <p className="text-sm text-ink-soft">Move this order to the next step in fulfilment.</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <Select
+                    label="Update status"
+                    value={selectedStatus}
+                    onChange={(event) => setNextStatus(event.target.value)}
+                    className="min-w-48"
+                  >
+                    {options.map((status) => (
+                      <option key={status} value={status}>
+                        {formatStatus(status)}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={updateStatus.isPending || !selectedStatus}
+                    onClick={() => updateStatus.mutate(selectedStatus)}
+                  >
+                    {updateStatus.isPending ? 'Updating…' : 'Apply status'}
+                  </Button>
+                </div>
               </div>
             ) : (
-              <p className="text-sm text-ink-soft">No further status transitions available.</p>
+              <p className="border-t border-line pt-4 text-sm text-ink-soft">
+                No further status transitions for <span className="font-semibold text-ink">{formatStatus(data.status)}</span>.
+                {data.status === 'REFUNDED' || data.status === 'CANCELLED'
+                  ? ' This order is closed.'
+                  : ' Refresh the page if you expected more options.'}
+              </p>
             )}
           </Card>
 

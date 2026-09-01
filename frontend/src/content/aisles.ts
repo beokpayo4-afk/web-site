@@ -13,7 +13,7 @@ export const HOME_AISLES = [
     eyebrow: 'Power Up',
     title: 'Charging',
     tag: 'ENERGY',
-    navLabel: 'Power and Charging',
+    navLabel: 'Power & Charging',
     to: '/category/charging',
     category: 'charging',
   },
