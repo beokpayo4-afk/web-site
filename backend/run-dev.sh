@@ -2,4 +2,12 @@
 # Nexora API on 8001 — avoids conflict when another app uses port 8000.
 set -euo pipefail
 cd "$(dirname "$0")"
-exec uvicorn main:app --reload --host 127.0.0.1 --port 8001
+ROOT="$(cd .. && pwd)"
+if [[ -x "$ROOT/.venv/Scripts/python.exe" ]]; then
+  PYTHON="$ROOT/.venv/Scripts/python.exe"
+elif [[ -x "$ROOT/.venv/bin/python" ]]; then
+  PYTHON="$ROOT/.venv/bin/python"
+else
+  PYTHON="${PYTHON:-python}"
+fi
+exec "$PYTHON" -m uvicorn main:app --reload --host 127.0.0.1 --port 8001

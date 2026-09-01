@@ -1,3 +1,8 @@
 @echo off
 cd /d "%~dp0"
-uvicorn main:app --reload --host 127.0.0.1 --port 8001
+set "ROOT=%~dp0.."
+if exist "%ROOT%\.venv\Scripts\python.exe" (
+  "%ROOT%\.venv\Scripts\python.exe" -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
+) else (
+  python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
+)
