@@ -4,9 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 if [[ -n "${RENDER:-}" || -n "${RENDER_EXTERNAL_HOSTNAME:-}" ]]; then
-  echo "error: run-dev.sh is for local development only." >&2
-  echo "On Render, set Start Command to: bash start.sh" >&2
-  exit 1
+  echo "Render detected — using production start (start.sh)." >&2
+  exec bash "$(dirname "$0")/start.sh"
 fi
 
 ROOT="$(cd .. && pwd)"
