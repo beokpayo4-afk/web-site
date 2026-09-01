@@ -1,0 +1,15 @@
+# Optional Render Blueprint. You can also set these in the Render dashboard.
+services:
+  - type: web
+    name: web-site
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".onrender.com,web-site-n1vp.onrender.com"

@@ -32,7 +32,7 @@ if not (
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
 DEBUG = env("DJANGO_DEBUG")
-ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+ALLOWED_HOSTS = list(env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"]))
 
 _ON_VERCEL = bool(
     os.environ.get("VERCEL")
@@ -40,19 +40,31 @@ _ON_VERCEL = bool(
     or os.environ.get("VERCEL_URL")
     or os.environ.get("NOW_REGION")
 )
-_ON_RENDER = bool(os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_HOSTNAME"))
+_ON_RENDER = bool(
+    os.environ.get("RENDER")
+    or os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    or os.environ.get("RENDER_EXTERNAL_URL")
+)
+
+def _append_host(host: str) -> None:
+    host = (host or "").strip().rstrip("/")
+    if host.startswith("https://"):
+        host = host[len("https://") :]
+    elif host.startswith("http://"):
+        host = host[len("http://") :]
+    host = host.split("/")[0].split(":")[0]
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
 
 if _ON_VERCEL:
     for host in (".vercel.app", ".now.sh"):
-        if host not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(host)
+        _append_host(host)
 
 if _ON_RENDER:
-    if ".onrender.com" not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(".onrender.com")
-    render_host = (os.environ.get("RENDER_EXTERNAL_HOSTNAME") or "").strip()
-    if render_host and render_host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(render_host)
+    _append_host(".onrender.com")
+    _append_host(os.environ.get("RENDER_EXTERNAL_HOSTNAME", ""))
+    _append_host(os.environ.get("RENDER_EXTERNAL_URL", ""))
 
 TESTING = "test" in sys.argv or env.bool("DJANGO_TESTING", default=False)
 
@@ -195,9 +207,18 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-CORS_ALLOWED_ORIGINS = env("DJANGO_CORS_ALLOWED_ORIGINS")
+CORS_ALLOWED_ORIGINS = list(
+    env.list(
+        "DJANGO_CORS_ALLOWED_ORIGINS",
+        default=["http://localhost:5173", "http://localhost:5174"],
+    )
+)
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
+if _ON_RENDER:
+    render_url = (os.environ.get("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
+    if render_url and render_url not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_url)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
