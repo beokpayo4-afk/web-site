@@ -40,7 +40,8 @@ if not _ON_VERCEL and not _ON_RENDER:
     environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
-DEBUG = env("DJANGO_DEBUG")
+# Never serve Django debug pages on Render (they can leak connection details).
+DEBUG = False if _ON_RENDER else env("DJANGO_DEBUG")
 ALLOWED_HOSTS = list(env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"]))
 
 def _append_host(host: str) -> None:
@@ -83,6 +84,10 @@ def _database_url() -> str:
     return ""
 
 
+def _is_loopback_host(host: str) -> bool:
+    return (host or "").strip().lower() in {"", "localhost", "127.0.0.1", "::1"}
+
+
 def _resolve_databases() -> dict:
     if TESTING or env("DATABASE_ENGINE") == "sqlite":
         return _sqlite_db()
@@ -90,18 +95,25 @@ def _resolve_databases() -> dict:
     database_url = _database_url()
     if database_url:
         # Render/Vercel Postgres requires SSL; local Docker/Postgres usually does not.
-        return {
-            "default": dj_database_url.parse(
-                database_url,
-                conn_max_age=600,
-                ssl_require=_ON_RENDER or _ON_VERCEL,
+        config = dj_database_url.parse(
+            database_url,
+            conn_max_age=600,
+            ssl_require=_ON_RENDER or _ON_VERCEL,
+        )
+        host = str(config.get("HOST") or "")
+        if (_ON_RENDER or _ON_VERCEL) and _is_loopback_host(host):
+            raise ImproperlyConfigured(
+                "DATABASE_URL points to localhost/127.0.0.1, which cannot work on Render. "
+                "In the Render dashboard, set DATABASE_URL to your Postgres "
+                "Internal Database URL (host ends with .render.com), or link the database "
+                "so Render injects DATABASE_URL automatically. Do not paste your local .env value."
             )
-        }
+        return {"default": config}
 
     if _ON_RENDER:
         raise ImproperlyConfigured(
             "DATABASE_URL is not set. On Render, link a PostgreSQL database "
-            "or set DATABASE_URL to the Render Postgres connection string."
+            "or set DATABASE_URL to the Render Postgres Internal Database URL."
         )
 
     if _ON_VERCEL:

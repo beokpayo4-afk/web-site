@@ -21,7 +21,7 @@ services:
       - key: FRONTEND_URL
         value: "https://web-site-frontend-amber.vercel.app"
       - key: DJANGO_CORS_ALLOWED_ORIGINS
-        value: "http://localhost:5173,http://localhost:5174,https://web-site-frontend-amber.vercel.app"
+        value: "http://localhost:5173,http://localhost:5174,https://web-site-frontend-amber.vercel.app,https://web-site-1-wecz.onrender.com"
       # Injected from the linked Render Postgres service (not localhost).
       - key: DATABASE_URL
         fromDatabase:
