@@ -200,7 +200,8 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="products/")
+    image = models.ImageField(upload_to="products/", blank=True)
+    image_url = models.URLField(max_length=1000, blank=True)
     alt_text = models.CharField(max_length=160, blank=True)
     is_primary = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
@@ -209,6 +210,16 @@ class ProductImage(models.Model):
     class Meta:
         ordering = ["sort_order", "id"]
         indexes = [models.Index(fields=["product", "is_primary"])]
+
+    def display_url(self):
+        if self.image_url:
+            return self.image_url
+        if self.image:
+            try:
+                return self.image.url
+            except ValueError:
+                return ""
+        return ""
 
 
 class Inventory(models.Model):

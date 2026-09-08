@@ -1,7 +1,19 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import URLValidator
 from django.db.models import Avg, Count, Q
 from rest_framework import serializers
+from rest_framework.fields import empty
 
 from apps.catalog.models import Brand, Category, Inventory, Product, ProductImage, TaxClass, normalize_tags
+
+
+def public_image_url(image, request=None):
+    url = image.display_url() if image else ""
+    if not url:
+        return None
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    return request.build_absolute_uri(url) if request else url
 
 
 class TaxClassSerializer(serializers.ModelSerializer):
@@ -25,21 +37,62 @@ class BrandSerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
     class Meta:
         model = ProductImage
         fields = ("id", "image", "alt_text", "is_primary", "sort_order")
-        extra_kwargs = {"image": {"required": False}}
+
+    def validate_image(self, value):
+        value = (value or "").strip()
+        if not value:
+            return ""
+        try:
+            URLValidator()(value)
+        except DjangoValidationError:
+            raise serializers.ValidationError("Enter a valid image URL.") from None
+        if not value.lower().startswith(("http://", "https://")):
+            raise serializers.ValidationError("Image URL must start with http:// or https://.")
+        return value
+
+    def _uploaded_file(self):
+        request = self.context.get("request")
+        if not request:
+            return None
+        return request.FILES.get("image")
 
     def validate(self, attrs):
-        if self.instance is None and not attrs.get("image"):
-            raise serializers.ValidationError({"image": "Image file is required."})
+        if self.instance is None and not attrs.get("image") and not self._uploaded_file():
+            raise serializers.ValidationError({"image": "Image URL is required."})
         return attrs
+
+    def create(self, validated_data):
+        url = validated_data.pop("image", "") or ""
+        uploaded = self._uploaded_file()
+        instance = ProductImage(**validated_data)
+        if uploaded:
+            instance.image = uploaded
+        elif url:
+            instance.image_url = url
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        url = validated_data.pop("image", empty)
+        uploaded = self._uploaded_file()
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if uploaded:
+            instance.image = uploaded
+            instance.image_url = ""
+        elif url is not empty and url:
+            instance.image_url = url
+        instance.save()
+        return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        request = self.context.get("request")
-        if instance.image and request:
-            data["image"] = request.build_absolute_uri(instance.image.url)
+        data["image"] = public_image_url(instance, self.context.get("request")) or ""
         return data
 
 
@@ -81,11 +134,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         image = next((img for img in obj.images.all() if img.is_primary), None)
         if image is None:
             image = obj.images.first()
-        if image is None:
-            return None
-        request = self.context.get("request")
-        url = image.image.url
-        return request.build_absolute_uri(url) if request else url
+        return public_image_url(image, self.context.get("request"))
 
 
 class ProductDetailSerializer(ProductListSerializer):
@@ -193,11 +242,7 @@ class AdminProductSerializer(serializers.ModelSerializer):
     def get_primary_image(self, obj):
         images = list(obj.images.all())
         primary = next((img for img in images if img.is_primary), images[0] if images else None)
-        if not primary:
-            return None
-        request = self.context.get("request")
-        url = primary.image.url
-        return request.build_absolute_uri(url) if request else url
+        return public_image_url(primary, self.context.get("request"))
 
     def get_low_stock_threshold(self, obj):
         inventory = getattr(obj, "inventory", None)

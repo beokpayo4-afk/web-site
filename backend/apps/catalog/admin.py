@@ -6,6 +6,7 @@ from apps.catalog.models import Brand, Category, Inventory, Product, ProductImag
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 0
+    fields = ("image_url", "image", "alt_text", "is_primary", "sort_order")
 
 
 class InventoryInline(admin.StackedInline):

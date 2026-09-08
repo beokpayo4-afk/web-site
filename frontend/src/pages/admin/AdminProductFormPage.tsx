@@ -17,8 +17,14 @@ import type { AdminProduct, ProductImage, TaxClass } from '@/types/api'
 type SpecRow = { name: string; value: string }
 type ProductStatus = 'DRAFT' | 'PUBLISHED' | 'UNPUBLISHED'
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+function isHttpUrl(value: string) {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 function specsToRows(specs: Record<string, string | number | boolean> | undefined): SpecRow[] {
   const entries = Object.entries(specs ?? {})
@@ -74,7 +80,8 @@ function ProductEditor({
   const [formError, setFormError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [pendingDelete, setPendingDelete] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [savingImage, setSavingImage] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
   const [images, setImages] = useState<ProductImage[]>(initial?.images ?? [])
 
   const selectedTax = taxClasses.find((row) => String(row.id) === taxClass)
@@ -157,27 +164,23 @@ function ProductEditor({
     setImages(fresh.images)
   }
 
-  async function onUpload(files: FileList | null) {
-    if (!productId || !files?.length) return
-    setUploading(true)
+  async function addImageLink() {
+    if (!productId) return
+    const url = imageUrl.trim()
+    if (!isHttpUrl(url)) {
+      toast.push('Enter a valid image URL starting with http:// or https://', 'error')
+      return
+    }
+    setSavingImage(true)
     try {
-      for (const file of Array.from(files)) {
-        if (!IMAGE_TYPES.has(file.type)) {
-          toast.push(`${file.name}: use JPG, PNG, or WEBP.`, 'error')
-          continue
-        }
-        if (file.size > MAX_IMAGE_BYTES) {
-          toast.push(`${file.name}: max 5 MB.`, 'error')
-          continue
-        }
-        await adminService.uploadProductImage(productId, file, { is_primary: images.length === 0 })
-      }
+      await adminService.addProductImage(productId, { image: url, is_primary: images.length === 0 })
+      setImageUrl('')
       await refreshImages(productId)
-      toast.push('Images uploaded.')
+      toast.push('Image link added.')
     } catch (err) {
-      toast.push(getErrorMessage(err, 'Image upload failed.'), 'error')
+      toast.push(getErrorMessage(err, 'Could not add image link.'), 'error')
     } finally {
-      setUploading(false)
+      setSavingImage(false)
     }
   }
 
@@ -333,20 +336,39 @@ function ProductEditor({
         <Card className="space-y-3">
           <h2 className="font-display text-xl">Product images</h2>
           {isNew ? (
-            <p className="text-sm text-ink-soft">Save the product first, then upload images.</p>
+            <p className="text-sm text-ink-soft">Save the product first, then paste image links.</p>
           ) : (
             <>
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                multiple
-                onChange={(event) => void onUpload(event.target.files)}
-                disabled={uploading}
-              />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <Input
+                    label="Image URL"
+                    type="url"
+                    placeholder="https://example.com/product.jpg"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void addImageLink()
+                      }
+                    }}
+                  />
+                </div>
+                <Button type="button" disabled={savingImage || !imageUrl.trim()} onClick={() => void addImageLink()}>
+                  {savingImage ? 'Adding…' : 'Add image'}
+                </Button>
+              </div>
+              {isHttpUrl(imageUrl.trim()) ? (
+                <img src={imageUrl.trim()} alt="" className="h-24 w-24 rounded-lg object-cover" />
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {images.map((image) => (
                   <div key={image.id} className="rounded-xl border border-line p-2">
                     <img src={image.image} alt={image.alt_text || ''} className="aspect-square w-full rounded-lg object-cover" />
+                    <p className="mt-1 truncate text-[11px] text-ink-soft" title={image.image}>
+                      {image.image}
+                    </p>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                       {image.is_primary ? (
                         <span className="text-pine">Primary</span>

@@ -47,12 +47,11 @@ export const adminService = {
   setProductStatus(id: number, action: 'publish' | 'unpublish' | 'draft') {
     return api.post<AdminProduct>(`/admin/products/${id}/status/`, { action }).then((r) => r.data)
   },
-  uploadProductImage(productId: number, file: File, extras?: { alt_text?: string; is_primary?: boolean }) {
-    const form = new FormData()
-    form.append('image', file)
-    if (extras?.alt_text) form.append('alt_text', extras.alt_text)
-    if (extras?.is_primary) form.append('is_primary', 'true')
-    return api.post<ProductImage>(`/admin/products/${productId}/images/`, form).then((r) => r.data)
+  addProductImage(
+    productId: number,
+    payload: { image: string; alt_text?: string; is_primary?: boolean },
+  ) {
+    return api.post<ProductImage>(`/admin/products/${productId}/images/`, payload).then((r) => r.data)
   },
   updateProductImage(productId: number, imageId: number, payload: Partial<ProductImage>) {
     return api.patch<ProductImage>(`/admin/products/${productId}/images/${imageId}/`, payload).then((r) => r.data)

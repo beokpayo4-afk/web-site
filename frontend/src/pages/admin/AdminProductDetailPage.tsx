@@ -86,7 +86,7 @@ export function AdminProductDetailPage() {
               ) : null,
             )}
           </div>
-          {!images.length && !data.primary_image ? <p className="text-sm text-ink-soft">No images uploaded.</p> : null}
+          {!images.length && !data.primary_image ? <p className="text-sm text-ink-soft">No image links yet.</p> : null}
         </Card>
         <Card className="space-y-3 p-5 text-sm">
           <dl className="space-y-2">
