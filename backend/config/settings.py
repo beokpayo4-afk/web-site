@@ -2,11 +2,12 @@
 
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 import os
 import sys
 
+import dj_database_url
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ROOT_DIR = BASE_DIR.parent
@@ -21,19 +22,6 @@ env = environ.Env(
     PAYMENT_PROVIDER=(str, "mock"),
 )
 
-if not (
-    os.environ.get("VERCEL")
-    or os.environ.get("VERCEL_ENV")
-    or os.environ.get("VERCEL_URL")
-    or os.environ.get("NOW_REGION")
-):
-    environ.Env.read_env(ROOT_DIR / ".env")
-    environ.Env.read_env(BASE_DIR / ".env")
-
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
-DEBUG = env("DJANGO_DEBUG")
-ALLOWED_HOSTS = list(env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"]))
-
 _ON_VERCEL = bool(
     os.environ.get("VERCEL")
     or os.environ.get("VERCEL_ENV")
@@ -45,6 +33,15 @@ _ON_RENDER = bool(
     or os.environ.get("RENDER_EXTERNAL_HOSTNAME")
     or os.environ.get("RENDER_EXTERNAL_URL")
 )
+
+# Never load local .env files on PaaS (they may point at localhost Postgres).
+if not _ON_VERCEL and not _ON_RENDER:
+    environ.Env.read_env(ROOT_DIR / ".env")
+    environ.Env.read_env(BASE_DIR / ".env")
+
+SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-dev-only-key")
+DEBUG = env("DJANGO_DEBUG")
+ALLOWED_HOSTS = list(env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"]))
 
 def _append_host(host: str) -> None:
     host = (host or "").strip().rstrip("/")
@@ -78,52 +75,49 @@ def _sqlite_db():
     }
 
 
-def _postgres_from_url(url: str) -> dict | None:
-    """Parse a Postgres URL without django-environ (empty URLs make it warn and fail Vercel)."""
-    raw = (url or "").strip().strip('"').strip("'")
-    if not raw or raw.lower() in {"undefined", "null", "none", "nil", "{}"}:
-        return None
-
-    parsed = urlparse(raw)
-    if (parsed.scheme or "").lower() not in {"postgres", "postgresql", "pgsql", "postgis"}:
-        return None
-
-    name = unquote((parsed.path or "").lstrip("/"))
-    if not name:
-        return None
-
-    return {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": name,
-        "USER": unquote(parsed.username or ""),
-        "PASSWORD": unquote(parsed.password or ""),
-        "HOST": parsed.hostname or "",
-        "PORT": str(parsed.port or ""),
-    }
+def _database_url() -> str:
+    for key in ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING"):
+        raw = (os.environ.get(key) or "").strip().strip('"').strip("'")
+        if raw and raw.lower() not in {"undefined", "null", "none", "nil", "{}"}:
+            return raw
+    return ""
 
 
 def _resolve_databases() -> dict:
     if TESTING or env("DATABASE_ENGINE") == "sqlite":
         return _sqlite_db()
 
-    for key in ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING"):
-        config = _postgres_from_url(os.environ.get(key, ""))
-        if config:
-            return {"default": config}
+    database_url = _database_url()
+    if database_url:
+        # Render/Vercel Postgres requires SSL; local Docker/Postgres usually does not.
+        return {
+            "default": dj_database_url.parse(
+                database_url,
+                conn_max_age=600,
+                ssl_require=_ON_RENDER or _ON_VERCEL,
+            )
+        }
+
+    if _ON_RENDER:
+        raise ImproperlyConfigured(
+            "DATABASE_URL is not set. On Render, link a PostgreSQL database "
+            "or set DATABASE_URL to the Render Postgres connection string."
+        )
 
     if _ON_VERCEL:
         # Vercel imports settings during build/collectstatic before runtime env is wired.
         # Use ephemeral SQLite so deploy can finish; VercelDatabaseGuardMiddleware blocks live API traffic.
         return _sqlite_db()
 
+    # Local development only — never used on Render/Vercel.
     return {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": "nexora",
-            "USER": "nexora",
-            "PASSWORD": "nexora",
-            "HOST": "localhost",
-            "PORT": "5432",
+            "NAME": os.getenv("DB_NAME", "nexora"),
+            "USER": os.getenv("DB_USER", "nexora"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
         }
     }
 
