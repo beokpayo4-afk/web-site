@@ -2,14 +2,21 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import CustomerProfile
-from apps.catalog.models import Brand, Category, Inventory, Product, TaxClass
+from apps.catalog.models import Brand, Category, Inventory, Product, ProductImage, TaxClass
 from apps.orders.models import Coupon, Order, OrderItem, StoreSetting
 
 User = get_user_model()
+
+TINY_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 SNAPSHOT = {
     "full_name": "Asha Rao",
@@ -324,3 +331,34 @@ class DashboardAdminTests(APITestCase):
         )
         self.assertEqual(updated.status_code, 200)
         self.assertEqual(updated.data["quantity"], 12)
+
+    def test_product_image_multipart_upload_does_not_crash(self):
+        self.login_role(User.Role.PRODUCT_MANAGER)
+        upload = SimpleUploadedFile("shot.png", TINY_PNG, content_type="image/png")
+        created = self.client.post(
+            f"/api/v1/admin/products/{self.product.id}/images/",
+            {"image": upload, "is_primary": True},
+            format="multipart",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        row = ProductImage.objects.get(pk=created.data["id"])
+        self.assertTrue(row.image)
+        self.assertEqual(row.image_url, "")
+
+    def test_product_image_url_update_clears_uploaded_file(self):
+        self.login_role(User.Role.PRODUCT_MANAGER)
+        photo = ProductImage.objects.create(
+            product=self.product,
+            image=SimpleUploadedFile("shot.png", TINY_PNG, content_type="image/png"),
+            is_primary=True,
+        )
+        self.assertTrue(photo.image)
+        updated = self.client.patch(
+            f"/api/v1/admin/products/{self.product.id}/images/{photo.id}/",
+            {"image": "https://cdn.example.com/product.jpg"},
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.data)
+        photo.refresh_from_db()
+        self.assertEqual(photo.image_url, "https://cdn.example.com/product.jpg")
+        self.assertFalse(photo.image)

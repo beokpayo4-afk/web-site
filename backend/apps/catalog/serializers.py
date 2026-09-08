@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import URLValidator
 from django.db.models import Avg, Count, Q
 from rest_framework import serializers
@@ -14,6 +15,24 @@ def public_image_url(image, request=None):
     if url.startswith("http://") or url.startswith("https://"):
         return url
     return request.build_absolute_uri(url) if request else url
+
+
+def _is_uploaded_file(value):
+    return isinstance(value, UploadedFile) or (
+        value is not None
+        and not isinstance(value, (str, bytes, bytearray))
+        and callable(getattr(value, "read", None))
+        and hasattr(value, "name")
+    )
+
+
+class ImageURLOrFileField(serializers.CharField):
+    """Accepts an http(s) image URL or a multipart uploaded file."""
+
+    def to_internal_value(self, data):
+        if _is_uploaded_file(data):
+            return data
+        return super().to_internal_value(data)
 
 
 class TaxClassSerializer(serializers.ModelSerializer):
@@ -37,14 +56,16 @@ class BrandSerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    image = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    image = ImageURLOrFileField(required=False, allow_blank=True, max_length=1000)
 
     class Meta:
         model = ProductImage
         fields = ("id", "image", "alt_text", "is_primary", "sort_order")
 
     def validate_image(self, value):
-        value = (value or "").strip()
+        if _is_uploaded_file(value):
+            return value
+        value = (value or "").strip() if isinstance(value, str) else ""
         if not value:
             return ""
         try:
@@ -55,38 +76,48 @@ class ProductImageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Image URL must start with http:// or https://.")
         return value
 
-    def _uploaded_file(self):
+    def _uploaded_file(self, image_value=empty):
+        if image_value is not empty and _is_uploaded_file(image_value):
+            return image_value
         request = self.context.get("request")
         if not request:
             return None
         return request.FILES.get("image")
 
     def validate(self, attrs):
-        if self.instance is None and not attrs.get("image") and not self._uploaded_file():
+        if self.instance is None and not attrs.get("image") and not self._uploaded_file(attrs.get("image", empty)):
             raise serializers.ValidationError({"image": "Image URL is required."})
         return attrs
 
+    def _clear_file(self, instance):
+        if instance.image:
+            instance.image.delete(save=False)
+        instance.image = ""
+
     def create(self, validated_data):
-        url = validated_data.pop("image", "") or ""
-        uploaded = self._uploaded_file()
+        image_value = validated_data.pop("image", "") or ""
+        uploaded = self._uploaded_file(image_value)
         instance = ProductImage(**validated_data)
         if uploaded:
             instance.image = uploaded
-        elif url:
-            instance.image_url = url
+            instance.image_url = ""
+        elif isinstance(image_value, str) and image_value:
+            instance.image = ""
+            instance.image_url = image_value
         instance.save()
         return instance
 
     def update(self, instance, validated_data):
-        url = validated_data.pop("image", empty)
-        uploaded = self._uploaded_file()
+        image_value = validated_data.pop("image", empty)
+        uploaded = self._uploaded_file(image_value)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if uploaded:
             instance.image = uploaded
             instance.image_url = ""
-        elif url is not empty and url:
-            instance.image_url = url
+        elif image_value is not empty and image_value:
+            self._clear_file(instance)
+            instance.image_url = image_value
         instance.save()
         return instance
 
