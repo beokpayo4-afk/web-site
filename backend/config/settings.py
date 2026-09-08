@@ -115,7 +115,7 @@ def _resolve_databases() -> dict:
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.getenv("DB_NAME", "nexora"),
             "USER": os.getenv("DB_USER", "nexora"),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "PASSWORD": os.getenv("DB_PASSWORD", "nexora"),
             "HOST": os.getenv("DB_HOST", "localhost"),
             "PORT": os.getenv("DB_PORT", "5432"),
         }

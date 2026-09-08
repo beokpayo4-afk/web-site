@@ -1,4 +1,8 @@
 # Optional Render Blueprint. You can also set these in the Render dashboard.
+databases:
+  - name: nexora-db
+    plan: free
+
 services:
   - type: web
     name: web-site
@@ -18,7 +22,8 @@ services:
         value: "https://web-site-frontend-amber.vercel.app"
       - key: DJANGO_CORS_ALLOWED_ORIGINS
         value: "http://localhost:5173,http://localhost:5174,https://web-site-frontend-amber.vercel.app"
-      # Required: Internal Database URL from your Render PostgreSQL instance.
-      # Dashboard → Environment → Add DATABASE_URL (or link the DB so Render injects it).
+      # Injected from the linked Render Postgres service (not localhost).
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: nexora-db
+          property: connectionString
