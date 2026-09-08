@@ -4,7 +4,7 @@ import { notifyAuthExpired } from '@/lib/authEvents'
 import { tokenStore } from '@/lib/tokenStore'
 import type { ApiError } from '@/types/api'
 
-/** Backend origin (no path). Set VITE_API_URL in Vercel / frontend/.env for production. */
+/** Backend origin (no path). Set VITE_API_URL in Netlify/Vercel / frontend/.env for production. */
 export function getApiRoot(): string {
   return (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8001').replace(/\/+$/, '')
 }

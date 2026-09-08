@@ -38,7 +38,10 @@ def build_cors_origin_regexes() -> list[str]:
         or os.environ.get("RENDER_EXTERNAL_URL")
     )
     if on_render:
-        vercel = r"^https://[\w-]+\.vercel\.app$"
-        if vercel not in regexes:
-            regexes.append(vercel)
+        for pattern in (
+            r"^https://[\w-]+\.vercel\.app$",
+            r"^https://[\w-]+\.netlify\.app$",
+        ):
+            if pattern not in regexes:
+                regexes.append(pattern)
     return regexes
