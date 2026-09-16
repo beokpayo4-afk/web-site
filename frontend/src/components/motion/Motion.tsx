@@ -224,6 +224,8 @@ export function SpotlightCard({ children, className }: BoxProps) {
   const reduce = useReducedMotion()
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
+  const opacity = useMotionValue(0)
+  const opacitySpring = useSpring(opacity, { stiffness: 280, damping: 28 })
   const background = useMotionTemplate`
     radial-gradient(420px circle at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.18), transparent 55%)
   `
@@ -235,13 +237,19 @@ export function SpotlightCard({ children, className }: BoxProps) {
   return (
     <motion.div
       className={`relative overflow-hidden ${className ?? ''}`}
+      onPointerEnter={() => opacity.set(1)}
       onPointerMove={(event) => {
         const rect = event.currentTarget.getBoundingClientRect()
         mouseX.set(event.clientX - rect.left)
         mouseY.set(event.clientY - rect.top)
+        opacity.set(1)
       }}
+      onPointerLeave={() => opacity.set(0)}
     >
-      <motion.div className="pointer-events-none absolute inset-0 z-10" style={{ background }} />
+      <motion.div
+        className="pointer-events-none absolute inset-0 z-10"
+        style={{ background, opacity: opacitySpring }}
+      />
       {children}
     </motion.div>
   )
