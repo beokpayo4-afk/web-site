@@ -1,3 +1,7 @@
+import { motion, useReducedMotion } from 'motion/react'
+
+import { Stagger, StaggerItem, springLux } from '@/components/motion/Motion'
+
 const notes = [
   {
     title: 'Free shipping',
@@ -26,7 +30,7 @@ const notes = [
   },
   {
     title: 'Support that answers',
-    body: 'Nexora desk, not a ticket farm.',
+    body: 'Luxurisse desk, not a ticket farm.',
     icon: (
       <path
         d="M5 18v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
@@ -51,19 +55,33 @@ const notes = [
 ]
 
 export function TrustRow() {
+  const reduce = useReducedMotion()
+
   return (
-    <section className="grid gap-6 border-y border-line bg-white px-4 py-8 sm:grid-cols-2 lg:grid-cols-4 lg:px-2">
+    <Stagger className="grid gap-6 border-y border-line bg-white px-4 py-8 sm:grid-cols-2 lg:grid-cols-4 lg:px-2" delay={0.1}>
       {notes.map((note) => (
-        <div key={note.title} className="flex gap-3">
-          <svg viewBox="0 0 24 24" className="mt-0.5 h-8 w-8 shrink-0 text-clay" aria-hidden="true">
-            {note.icon}
-          </svg>
-          <div>
-            <p className="font-semibold">{note.title}</p>
-            <p className="mt-1 text-sm text-ink-soft">{note.body}</p>
-          </div>
-        </div>
+        <StaggerItem key={note.title}>
+          <motion.div
+            className="flex gap-3"
+            whileHover={reduce ? undefined : { y: -4 }}
+            transition={springLux}
+          >
+            <motion.svg
+              viewBox="0 0 24 24"
+              className="mt-0.5 h-8 w-8 shrink-0 text-clay"
+              aria-hidden="true"
+              whileHover={reduce ? undefined : { rotate: -8, scale: 1.08 }}
+              transition={springLux}
+            >
+              {note.icon}
+            </motion.svg>
+            <div>
+              <p className="font-semibold">{note.title}</p>
+              <p className="mt-1 text-sm text-ink-soft">{note.body}</p>
+            </div>
+          </motion.div>
+        </StaggerItem>
       ))}
-    </section>
+    </Stagger>
   )
 }

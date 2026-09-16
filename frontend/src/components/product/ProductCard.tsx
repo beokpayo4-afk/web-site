@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, useReducedMotion } from 'motion/react'
 
-import { Stagger, StaggerItem } from '@/components/motion/Motion'
+import { Stagger, StaggerItem, springLux } from '@/components/motion/Motion'
 import { buttonClassName } from '@/components/ui/buttonStyles'
 import { Badge } from '@/components/ui/Card'
 import { useAuth } from '@/hooks/useAuth'
@@ -43,9 +43,17 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <motion.article
-      className="flex h-full flex-col rounded-xl border border-line bg-white p-3"
-      whileHover={reduce ? undefined : { y: -4 }}
-      transition={{ duration: 0.25 }}
+      className="group flex h-full flex-col rounded-xl border border-line bg-white p-3 shadow-none"
+      whileHover={
+        reduce
+          ? undefined
+          : {
+              y: -8,
+              boxShadow: '0 18px 40px rgba(24, 40, 32, 0.12)',
+              borderColor: 'rgba(31, 77, 58, 0.28)',
+            }
+      }
+      transition={springLux}
     >
       <Link to={`/product/${product.slug}`} className="block overflow-hidden rounded-lg focus-visible:outline-offset-4">
         {product.primary_image ? (
@@ -53,8 +61,8 @@ export function ProductCard({ product }: { product: Product }) {
             src={product.primary_image}
             alt={product.name}
             className="aspect-square w-full object-cover"
-            whileHover={reduce ? undefined : { scale: 1.04 }}
-            transition={{ duration: 0.4 }}
+            whileHover={reduce ? undefined : { scale: 1.08 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           />
         ) : (
           <ProductArt sku={product.sku} name={product.name} />
@@ -62,7 +70,7 @@ export function ProductCard({ product }: { product: Product }) {
       </Link>
       <div className="flex flex-1 flex-col gap-2 px-1 pt-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-clay">{product.category.name}</p>
-        <Link to={`/product/${product.slug}`} className="font-medium leading-snug text-ink hover:text-pine">
+        <Link to={`/product/${product.slug}`} className="font-medium leading-snug text-ink transition-colors group-hover:text-pine">
           {product.name}
         </Link>
         {product.average_rating ? (
@@ -79,14 +87,16 @@ export function ProductCard({ product }: { product: Product }) {
             <p className="text-xs text-ink-soft line-through">{formatMoney(product.mrp)}</p>
           ) : null}
           <p className="text-xs text-ink-soft">{inStock ? 'GST on the invoice' : 'Out of stock'}</p>
-          <button
+          <motion.button
             type="button"
             className={`${buttonClassName('primary', 'mt-3 w-full rounded-md')} shrink-0`}
             disabled={!inStock || cart.add.isPending}
             onClick={addToCart}
+            whileTap={reduce || !inStock ? undefined : { scale: 0.97 }}
+            whileHover={reduce || !inStock ? undefined : { scale: 1.02 }}
           >
             {cart.add.isPending ? 'Adding…' : 'Add to cart'}
-          </button>
+          </motion.button>
         </div>
       </div>
     </motion.article>
@@ -95,7 +105,7 @@ export function ProductCard({ product }: { product: Product }) {
 
 export function ProductGrid({ products }: { products: Product[] }) {
   return (
-    <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" delay={0.07}>
       {products.map((product) => (
         <StaggerItem key={product.id} className="h-full">
           <ProductCard product={product} />

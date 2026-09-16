@@ -9,26 +9,26 @@ export function HomePage() {
   return (
     <div className="-mx-4 -mt-8">
       <Hero />
-      <div className="mx-auto max-w-6xl space-y-12 px-4 py-12">
-        <Reveal>
+      <div className="mx-auto max-w-6xl space-y-14 px-4 py-14">
+        <Reveal y={36} blur>
           <ProductSection
             kicker="Best sellers"
             title="Electronics sale"
-            subtitle="Daily kit from the Nexora list, starting at ₹30 and staying under ₹1,000."
+            subtitle="Daily kit from the Luxurisse list, starting at ₹30 and staying under ₹1,000."
             to="/shop?bestseller=true&ordering=selling_price"
             query={{ bestseller: true, ordering: 'selling_price' }}
           />
         </Reveal>
-        <Reveal delay={0.05}>
+        <Reveal delay={0.04} y={40} blur>
           <CategorySection />
         </Reveal>
-        <Reveal delay={0.05}>
+        <Reveal delay={0.04} y={32}>
           <CompactHomeSection />
         </Reveal>
-        <Reveal>
+        <Reveal y={28}>
           <TrustRow />
         </Reveal>
-        <Reveal>
+        <Reveal y={36} blur>
           <ProductSection
             kicker="Catalogue"
             title="Browse the shop"
