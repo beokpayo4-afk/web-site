@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local dev: ./run-dev.sh  (127.0.0.1:8001, reload)
+# Local dev: ./run-dev.sh  (127.0.0.1:8010, reload)
 # On Render/PaaS: auto-delegates to start.sh (0.0.0.0:$PORT)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -28,4 +28,4 @@ elif [[ -x "$ROOT/.venv/Scripts/python.exe" ]]; then
 else
   PYTHON="${PYTHON:-python}"
 fi
-exec "$PYTHON" -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
+exec "$PYTHON" -m uvicorn main:app --reload --host 127.0.0.1 --port 8010

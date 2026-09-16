@@ -117,11 +117,14 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
       <p className="bg-pine px-4 py-2 text-center text-xs font-medium text-paper">
-        Original Nexora catalogue · Starting from ₹30 · Free shipping
+        Luxurisse catalogue · Starting from ₹30 · Free shipping
       </p>
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-        <Link to="/" className="shrink-0 font-display text-2xl text-pine">
-          Nexora
+        <Link
+          to="/"
+          className="max-w-44 shrink-0 font-display text-[0.7rem] leading-tight tracking-[0.04em] text-pine sm:max-w-none sm:text-sm md:text-base"
+        >
+          LUXURISSE PRIVATE LIMITED
         </Link>
         <SearchForm className="hidden flex-1 md:block" />
         <nav className="ml-auto hidden items-center gap-5 text-sm font-medium md:flex" aria-label="Account">
@@ -192,7 +195,9 @@ export function Header() {
             className="absolute inset-y-0 right-0 flex w-[min(22rem,100%)] flex-col overflow-y-auto bg-paper shadow-xl"
           >
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <p className="font-display text-xl text-pine">Nexora</p>
+              <p className="max-w-48 font-display text-sm leading-tight tracking-[0.04em] text-pine">
+                LUXURISSE PRIVATE LIMITED
+              </p>
               <button
                 ref={closeButtonRef}
                 type="button"

@@ -21,7 +21,7 @@ export function AdminLoginPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <PageHeader kicker="Admin" title="Sign in to Nexora Admin" />
+      <PageHeader kicker="Admin" title="Sign in to Luxurisse Admin" />
       <Card className="mt-4 space-y-4">
         {isAuthenticated && !isStaff ? (
           <Alert>This account is a customer account. Use a staff login for admin.</Alert>

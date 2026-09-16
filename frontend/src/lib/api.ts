@@ -6,7 +6,7 @@ import type { ApiError } from '@/types/api'
 
 /** Backend origin (no path). Set VITE_API_URL in Netlify/Vercel / frontend/.env for production. */
 export function getApiRoot(): string {
-  return (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8001').replace(/\/+$/, '')
+  return (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8010').replace(/\/+$/, '')
 }
 
 /** Django REST API base — all existing services use paths relative to /api/v1/. */
@@ -105,7 +105,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function getErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.') {
   if (axios.isAxiosError(error)) {
     if (!error.response) {
-      return `Cannot reach the API at ${getApiRoot()}. Start the backend with ./run-dev.sh (port 8001) and confirm VITE_API_URL.`
+      return `Cannot reach the API at ${getApiRoot()}. Start the backend with ./run-dev.sh (port 8010) and confirm VITE_API_URL.`
     }
     const status = error.response?.status
     const data = error.response?.data

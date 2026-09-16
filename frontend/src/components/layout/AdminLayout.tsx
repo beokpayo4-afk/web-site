@@ -118,12 +118,11 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <Link to="/admin" className="flex items-center gap-3 px-1" onClick={onNavigate}>
-        <span className="flex size-10 items-center justify-center rounded-xl bg-clay text-sm font-bold text-white">N</span>
-        <span>
-          <span className="block font-display text-xl leading-none text-white">Nexora</span>
-          <span className="mt-1 block text-[11px] uppercase tracking-[0.16em] text-white/55">Admin Panel</span>
+      <Link to="/admin" className="block px-1" onClick={onNavigate}>
+        <span className="block font-display text-sm leading-tight tracking-[0.04em] text-white">
+          LUXURISSE PRIVATE LIMITED
         </span>
+        <span className="mt-1 block text-[11px] uppercase tracking-[0.16em] text-white/55">Admin Panel</span>
       </Link>
 
       <nav className="mt-8 space-y-1" aria-label="Admin">
@@ -160,7 +159,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </button>
         <p className="px-3 text-[11px] leading-relaxed text-white/45">
           {now.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-          <span className="mt-1 block">Nexora Admin v1.0</span>
+          <span className="mt-1 block">Luxurisse Admin v1.0</span>
         </p>
       </div>
     </div>
@@ -249,7 +248,7 @@ export function AdminLayout() {
               >
                 Menu
               </button>
-              <p className="text-sm font-semibold">Nexora Admin</p>
+              <p className="text-sm font-semibold">Luxurisse Admin</p>
             </div>
             <TopBar />
             <main className="flex-1 p-4 md:p-6">

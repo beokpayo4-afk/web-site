@@ -27,7 +27,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease }}
           >
-            Nexora
+            LUXURISSE PRIVATE LIMITED
           </motion.p>
           <motion.h1
             className="mt-5 font-display text-4xl leading-[1.02] sm:text-5xl md:text-6xl"
@@ -45,7 +45,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.18, ease }}
           >
-            Audio, charging, accessories, and storage from the original Nexora list. Starting from {fromPrice}. GST on
+            Audio, charging, accessories, and storage from the Luxurisse catalogue. Starting from {fromPrice}. GST on
             the invoice.
           </motion.p>
           <motion.div
