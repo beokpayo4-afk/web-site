@@ -104,6 +104,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function getErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.') {
   if (axios.isAxiosError(error)) {
+    if (!error.response) {
+      return `Cannot reach the API at ${getApiRoot()}. Start the backend with ./run-dev.sh (port 8001) and confirm VITE_API_URL.`
+    }
     const status = error.response?.status
     const data = error.response?.data
     if (typeof data === 'string') {
