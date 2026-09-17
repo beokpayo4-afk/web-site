@@ -134,7 +134,12 @@ class InventoryService:
 
     @staticmethod
     def release(product, quantity: int):
-        inventory = Inventory.objects.filter(product=product).order_by().first()
+        inventory = (
+            Inventory.objects.select_for_update(of=("self",))
+            .order_by()
+            .filter(product=product)
+            .first()
+        )
         if inventory is None:
             return
         inventory.reserved_quantity = max(0, inventory.reserved_quantity - quantity)
@@ -149,7 +154,12 @@ class InventoryService:
 
     @staticmethod
     def restock(product, quantity: int):
-        inventory = Inventory.objects.filter(product=product).order_by().first()
+        inventory = (
+            Inventory.objects.select_for_update(of=("self",))
+            .order_by()
+            .filter(product=product)
+            .first()
+        )
         if inventory is None:
             return
         inventory.quantity += quantity
