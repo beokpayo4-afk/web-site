@@ -31,18 +31,25 @@ export function OrderSuccessPage() {
   }
 
   const data = order.data
+  const isPaid = data.payment_status === 'PAID'
+  const paymentNote = data.customer_notes?.startsWith('Payment method:')
+    ? data.customer_notes.replace(/^Payment method:\s*/, '')
+    : null
 
   return (
     <div className="mx-auto max-w-xl text-center">
-      <PageHeader kicker="Confirmed" title="Payment verified" />
+      <PageHeader kicker="Confirmed" title={isPaid ? 'Payment verified' : 'Order placed'} />
       <div className="mb-4 flex justify-center gap-2">
         <OrderStatusBadge status={data.status} />
       </div>
       <PaymentStatusBadge status={data.payment_status} />
       <p className="mt-4 text-ink-soft">
-        Order {data.order_number} is on file. GST, discount, and shipping were calculated on the server and the payment
-        signature was checked before stock was committed.
+        Order {data.order_number} is on file. GST and shipping were calculated on the server
+        {isPaid
+          ? ' and the payment signature was checked before stock was committed.'
+          : '. Pay on delivery if you chose cash on delivery.'}
       </p>
+      {paymentNote ? <p className="mt-2 text-sm font-medium text-ink">Payment: {paymentNote}</p> : null}
       <p className="mt-4 text-2xl font-semibold">{formatMoney(data.grand_total)}</p>
       {data.shipment ? (
         <p className="mt-2 text-sm text-ink-soft">Tracking {data.shipment.tracking_number}</p>

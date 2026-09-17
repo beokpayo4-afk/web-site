@@ -14,6 +14,36 @@ import { authService } from '@/services/auth'
 import { commerceService } from '@/services/commerce'
 import type { Address } from '@/types/api'
 
+const PAYMENT_METHODS = [
+  {
+    id: 'upi',
+    label: 'UPI',
+    description: 'Pay with GPay, PhonePe, Paytm, or any UPI app.',
+  },
+  {
+    id: 'card',
+    label: 'Credit / Debit card',
+    description: 'Visa, Mastercard, RuPay, and American Express.',
+  },
+  {
+    id: 'netbanking',
+    label: 'Net banking',
+    description: 'Pay directly from your bank account.',
+  },
+  {
+    id: 'wallet',
+    label: 'Wallets',
+    description: 'Paytm, Amazon Pay, and other wallets.',
+  },
+  {
+    id: 'cod',
+    label: 'Cash on delivery',
+    description: 'Pay in cash when the order arrives.',
+  },
+] as const
+
+type PaymentMethodId = (typeof PAYMENT_METHODS)[number]['id']
+
 export function CheckoutPage() {
   const { isAuthenticated } = useAuth()
   const cart = useCart()
@@ -29,25 +59,21 @@ export function CheckoutPage() {
   const [addressId, setAddressId] = useState<number | undefined>(undefined)
   const selectedId = addressId ?? defaultId
   const selected = addresses.find((row) => row.id === selectedId)
-  const [couponDraft, setCouponDraft] = useState('')
-  const [coupon, setCoupon] = useState('')
-  const [couponMessage, setCouponMessage] = useState('')
-  const [notes, setNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>('upi')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
 
   const previewKey = useMemo(
-    () => ['checkout-preview', selectedId, coupon, cart.data?.updated_at, selected?.state],
-    [selectedId, coupon, cart.data?.updated_at, selected?.state],
+    () => ['checkout-preview', selectedId, cart.data?.updated_at, selected?.state],
+    [selectedId, cart.data?.updated_at, selected?.state],
   )
   const preview = useQuery({
     queryKey: previewKey,
     queryFn: () =>
       commerceService.preview({
         shipping_address_id: selectedId!,
-        coupon_code: coupon || undefined,
         shipping_state: addresses.find((row) => row.id === selectedId)?.state,
       }),
     enabled: Boolean(selectedId) && (cart.data?.items.length ?? 0) > 0,
@@ -80,6 +106,16 @@ export function CheckoutPage() {
   if ((cart.data?.items.length ?? 0) === 0) {
     return <EmptyState title="Nothing to check out" body="Add items to your cart first." />
   }
+
+  const selectedPayment = PAYMENT_METHODS.find((method) => method.id === paymentMethod)!
+  const payLabel =
+    paymentMethod === 'cod'
+      ? pending
+        ? 'Placing order…'
+        : 'Place COD order'
+      : pending
+        ? 'Paying…'
+        : `Pay with ${selectedPayment.label}`
 
   return (
     <div>
@@ -136,57 +172,36 @@ export function CheckoutPage() {
           </section>
 
           <section className="rounded-2xl border border-line bg-white p-4">
-            <label className="block text-sm font-medium" htmlFor="coupon">
-              Coupon
-            </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
-              <input
-                id="coupon"
-                value={couponDraft}
-                onChange={(event) => {
-                  setCouponDraft(event.target.value)
-                  setCouponMessage('')
-                }}
-                className="w-full rounded-xl border border-line px-3 py-2.5 text-sm"
-                placeholder="NEXORA10"
-                autoComplete="off"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                className="shrink-0 sm:min-w-28"
-                disabled={!couponDraft.trim()}
-                onClick={() => {
-                  const code = couponDraft.trim()
-                  if (!code) return
-                  setCoupon(code)
-                  setCouponMessage(`Coupon “${code}” applied — totals will update below.`)
-                }}
-              >
-                Apply
-              </Button>
+            <h2 className="font-semibold">Payment method</h2>
+            <p className="mt-1 text-xs text-ink-soft">Choose how you want to pay for this order.</p>
+            <div className="mt-4 space-y-2">
+              {PAYMENT_METHODS.map((method) => (
+                <label
+                  key={method.id}
+                  className={`flex cursor-pointer gap-3 rounded-xl border px-3 py-3 transition ${
+                    paymentMethod === method.id ? 'border-pine bg-paper-2' : 'border-line bg-white hover:border-pine/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment-method"
+                    className="mt-1"
+                    checked={paymentMethod === method.id}
+                    onChange={() => setPaymentMethod(method.id)}
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">{method.label}</span>
+                    <span className="mt-0.5 block text-xs text-ink-soft">{method.description}</span>
+                  </span>
+                </label>
+              ))}
             </div>
-            {coupon ? <p className="mt-2 text-xs font-medium text-pine">Active coupon: {coupon}</p> : null}
-            {couponMessage ? <p className="mt-2 text-xs text-ink-soft">{couponMessage}</p> : null}
-            {coupon && preview.isError ? (
-              <p className="mt-2 text-xs text-red-700">{getErrorMessage(preview.error, 'That coupon could not be applied.')}</p>
-            ) : null}
-            <label className="mt-4 block text-sm font-medium" htmlFor="notes">
-              Order notes
-            </label>
-            <textarea
-              id="notes"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-line px-3 py-2.5 text-sm"
-              rows={3}
-            />
           </section>
         </div>
 
         <aside className="h-fit rounded-2xl border border-line bg-white p-5 lg:sticky lg:top-28">
           <h2 className="font-semibold">Order summary</h2>
-          <p className="mt-1 text-xs text-ink-soft">GST, discount, and shipping are calculated on the server from your cart. This page cannot set the total.</p>
+          <p className="mt-1 text-xs text-ink-soft">GST and shipping are calculated on the server from your cart. This page cannot set the total.</p>
           <div className="mt-4 space-y-2 text-sm">
             {cart.data?.items.map((item) => (
               <div key={item.id} className="flex justify-between gap-3">
@@ -224,9 +239,14 @@ export function CheckoutPage() {
                 setPending(true)
                 const order = await commerceService.checkout({
                   shipping_address_id: selected.id,
-                  coupon_code: coupon || undefined,
-                  customer_notes: notes,
+                  customer_notes: `Payment method: ${selectedPayment.label}`,
                 })
+                if (paymentMethod === 'cod') {
+                  await queryClient.invalidateQueries({ queryKey: ['cart'] })
+                  await queryClient.invalidateQueries({ queryKey: ['orders'] })
+                  navigate(`/order-success/${order.id}`)
+                  return
+                }
                 const paid = await commerceService.completeMockPayment({
                   provider_payment_id: order.payment!.provider_payment_id,
                   outcome: 'success',
@@ -242,10 +262,12 @@ export function CheckoutPage() {
               }
             }}
           >
-            {pending ? 'Placing order…' : 'Pay with mock gateway'}
+            {payLabel}
           </Button>
           <p className="mt-2 text-xs text-ink-soft">
-            The mock gateway asks the backend to emit a signed webhook. This page cannot mark a payment as paid.
+            {paymentMethod === 'cod'
+              ? 'Cash on delivery leaves the order unpaid until you settle with the delivery agent.'
+              : 'Online methods use the mock gateway locally. The browser cannot mark a payment as paid by itself.'}
           </p>
           <Link to="/cart" className="mt-3 inline-block text-sm font-semibold text-pine">
             Return to cart
