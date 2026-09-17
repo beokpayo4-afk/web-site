@@ -71,7 +71,7 @@ export const commerceService = {
   order(id: number) {
     return api.get<Order>(`/orders/${id}/`).then((r) => r.data)
   },
-  cancelOrder(id: number) {
-    return api.post<Order>(`/orders/${id}/cancel/`).then((r) => r.data)
+  cancelOrder(id: number, cancelReason: string) {
+    return api.post<Order>(`/orders/${id}/cancel/`, { cancel_reason: cancelReason }).then((r) => r.data)
   },
 }

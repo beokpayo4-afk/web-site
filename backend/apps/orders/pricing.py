@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -126,32 +125,32 @@ class InventoryService:
             raise ValidationError({"inventory": f"{product.name} has only {available} item(s) left."})
 
     @staticmethod
-    @transaction.atomic
     def reserve(product, quantity: int):
-        inventory = Inventory.objects.select_for_update().get(product=product)
+        inventory = Inventory.objects.select_for_update(of=("self",)).order_by().get(product=product)
         if inventory.available_quantity < quantity:
             raise ValidationError({"inventory": f"{product.name} is out of stock."})
         inventory.reserved_quantity += quantity
-        inventory.save()
+        inventory.save(update_fields=["reserved_quantity", "updated_at"])
 
     @staticmethod
-    @transaction.atomic
     def release(product, quantity: int):
-        inventory = Inventory.objects.select_for_update().get(product=product)
+        inventory = Inventory.objects.filter(product=product).order_by().first()
+        if inventory is None:
+            return
         inventory.reserved_quantity = max(0, inventory.reserved_quantity - quantity)
-        inventory.save()
+        inventory.save(update_fields=["reserved_quantity", "updated_at"])
 
     @staticmethod
-    @transaction.atomic
     def commit(product, quantity: int):
-        inventory = Inventory.objects.select_for_update().get(product=product)
+        inventory = Inventory.objects.select_for_update(of=("self",)).order_by().get(product=product)
         inventory.quantity -= quantity
         inventory.reserved_quantity = max(0, inventory.reserved_quantity - quantity)
-        inventory.save()
+        inventory.save(update_fields=["quantity", "reserved_quantity", "updated_at"])
 
     @staticmethod
-    @transaction.atomic
     def restock(product, quantity: int):
-        inventory = Inventory.objects.select_for_update().get(product=product)
+        inventory = Inventory.objects.filter(product=product).order_by().first()
+        if inventory is None:
+            return
         inventory.quantity += quantity
-        inventory.save()
+        inventory.save(update_fields=["quantity", "updated_at"])

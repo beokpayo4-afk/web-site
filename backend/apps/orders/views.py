@@ -115,7 +115,10 @@ class OrderCancelView(APIView):
 
     def post(self, request, pk):
         order = generics.get_object_or_404(Order, pk=pk, user=request.user)
-        updated = cancel_order(order)
+        reason = ""
+        if isinstance(request.data, dict):
+            reason = str(request.data.get("cancel_reason") or request.data.get("reason") or "")
+        updated = cancel_order(order, reason=reason)
         return Response(OrderSerializer(updated).data)
 
 

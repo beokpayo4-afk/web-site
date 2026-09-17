@@ -170,6 +170,7 @@ export interface Order {
   shipping_amount: string
   grand_total: string
   customer_notes: string
+  cancel_reason?: string
   items: OrderItem[]
   payments: { id: number; provider: string; amount: string; status: string; provider_payment_id: string; paid_at: string | null }[]
   shipment: {
@@ -185,6 +186,7 @@ export interface Order {
     tracking_events: { at: string; status: string; note: string }[]
   } | null
   created_at: string
+  updated_at?: string
   payment?: {
     provider_payment_id: string
     amount: string

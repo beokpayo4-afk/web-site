@@ -13,7 +13,7 @@ class OrderItemInline(admin.TabularInline):
 class OrderAdmin(admin.ModelAdmin):
     list_display = ("order_number", "user", "status", "payment_status", "grand_total", "created_at")
     list_filter = ("status", "payment_status")
-    search_fields = ("order_number", "user__email")
+    search_fields = ("order_number", "user__email", "cancel_reason")
     inlines = [OrderItemInline]
     readonly_fields = (
         "order_number",
@@ -23,6 +23,7 @@ class OrderAdmin(admin.ModelAdmin):
         "tax_amount",
         "shipping_amount",
         "grand_total",
+        "cancel_reason",
     )
 
 

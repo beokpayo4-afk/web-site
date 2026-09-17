@@ -16,6 +16,27 @@ export function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(value))
 }
 
+export function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(value))
+}
+
+export function formatDayLabel(value: string) {
+  return new Intl.DateTimeFormat('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit',
+  }).format(new Date(value))
+}
+
 export function formatStatus(value: string) {
   return value.replaceAll('_', ' ')
 }

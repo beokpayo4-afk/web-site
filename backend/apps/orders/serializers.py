@@ -81,6 +81,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "shipping_amount",
             "grand_total",
             "customer_notes",
+            "cancel_reason",
             "items",
             "payments",
             "shipment",

@@ -57,6 +57,7 @@ def create_order(*, user, shipping_address, billing_address, coupon_code=None, c
         grand_total=quote["grand_total"],
         coupon=coupon,
         customer_notes=customer_notes,
+        cancel_reason="",
     )
 
     for line in quote["lines"]:
@@ -77,7 +78,9 @@ def create_order(*, user, shipping_address, billing_address, coupon_code=None, c
 
     cart.items.all().delete()
     tracking = "NXSHIP" + secrets.token_hex(5).upper()
-    Shipment.objects.create(order=order, tracking_number=tracking)
+    shipment = Shipment.objects.create(order=order, tracking_number=tracking)
+    _append_tracking(shipment, "ORDER_PLACED", "Your order has been placed.")
+    shipment.save(update_fields=["tracking_events", "updated_at"])
     gateway = get_payment_gateway()
     payment = gateway.create_session(order)
     Notification.objects.create(
@@ -98,6 +101,10 @@ def mark_order_paid(order):
     order.payment_status = Order.PaymentStatus.PAID
     order.status = Order.Status.CONFIRMED
     order.save(update_fields=["payment_status", "status", "updated_at"])
+    shipment = Shipment.objects.filter(order_id=order.id).first()
+    if shipment is not None:
+        _append_tracking(shipment, "CONFIRMED", "Payment successful. Your order is confirmed.")
+        shipment.save(update_fields=["tracking_events", "updated_at"])
     for item in order.items.select_related("product"):
         InventoryService.commit(item.product, item.quantity)
     if order.coupon_id:
@@ -165,16 +172,28 @@ def _apply_cancellation_inventory(order, previous_status: str):
 
 
 @transaction.atomic
-def cancel_order(order, *, by_admin=False):
-    locked = Order.objects.select_for_update().select_related("shipment").prefetch_related("items").get(pk=order.pk)
+def cancel_order(order, *, reason="", by_admin=False):
+    # Avoid select_for_update() here: under ASGI + Postgres it can fail with
+    # "FOR UPDATE cannot be applied to the nullable side of an outer join"
+    # even on a simple PK fetch. Status check + single atomic write is enough.
+    locked = Order.objects.get(pk=order.pk)
     if not can_cancel(locked):
         raise ValidationError({"status": "This order can no longer be cancelled."})
-    return transition_order(locked, Order.Status.CANCELLED, by_admin=by_admin)
+    cleaned = (reason or "").strip()
+    if not by_admin and len(cleaned) < 3:
+        raise ValidationError({"cancel_reason": "Please tell us why you are cancelling this order."})
+    if cleaned:
+        locked.cancel_reason = cleaned[:240]
+    return _transition_locked(locked, Order.Status.CANCELLED, by_admin=by_admin)
 
 
 @transaction.atomic
 def transition_order(order, new_status: str, *, by_admin=False):
-    locked = Order.objects.select_for_update().select_related("shipment").get(pk=order.pk)
+    locked = Order.objects.get(pk=order.pk)
+    return _transition_locked(locked, new_status, by_admin=by_admin)
+
+
+def _transition_locked(locked, new_status: str, *, by_admin=False):
     if new_status not in Order.Status.values:
         raise ValidationError({"status": "Unknown order status."})
     allowed = ALLOWED_TRANSITIONS.get(locked.status, set())
@@ -182,7 +201,7 @@ def transition_order(order, new_status: str, *, by_admin=False):
         raise ValidationError({"status": f"Cannot move from {locked.status} to {new_status}."})
 
     previous_status = locked.status
-    shipment = getattr(locked, "shipment", None)
+    shipment = Shipment.objects.filter(order_id=locked.pk).first()
 
     if new_status == Order.Status.CANCELLED:
         _apply_cancellation_inventory(locked, previous_status)
@@ -201,36 +220,58 @@ def transition_order(order, new_status: str, *, by_admin=False):
     if shipment:
         if new_status == Order.Status.PACKED:
             shipment.status = Shipment.Status.PACKED
-            _append_tracking(shipment, "PACKED", "Packed at the warehouse")
+            _append_tracking(shipment, "PACKED", "Your item has been packed at the warehouse.")
             shipment.save()
         if new_status == Order.Status.SHIPPED:
-            now = _append_tracking(shipment, "SHIPPED", "Handed to carrier")
+            now = _append_tracking(shipment, "SHIPPED", "Your item has been picked up by the delivery partner.")
             shipment.status = Shipment.Status.SHIPPED
             shipment.shipped_at = now
             shipment.estimated_delivery = (now + timedelta(days=4)).date()
             shipment.save()
         if new_status == Order.Status.OUT_FOR_DELIVERY:
             shipment.status = Shipment.Status.OUT_FOR_DELIVERY
-            _append_tracking(shipment, "OUT_FOR_DELIVERY", "Out for delivery")
+            _append_tracking(shipment, "OUT_FOR_DELIVERY", "Your item is out for delivery.")
             shipment.save()
         if new_status == Order.Status.DELIVERED:
-            now = _append_tracking(shipment, "DELIVERED", "Delivered to customer")
+            now = _append_tracking(shipment, "DELIVERED", "Your item has been delivered.")
             shipment.status = Shipment.Status.DELIVERED
             shipment.delivered_at = now
             shipment.save()
         if new_status == Order.Status.CANCELLED:
-            _append_tracking(shipment, "CANCELLED", "Order cancelled")
+            note = "Your order was cancelled."
+            if locked.cancel_reason:
+                note = f"Your order was cancelled. Reason: {locked.cancel_reason}"
+            _append_tracking(shipment, "CANCELLED", note)
+            shipment.save(update_fields=["tracking_events", "updated_at"])
+        if new_status == Order.Status.PROCESSING:
+            _append_tracking(shipment, "PROCESSING", "Seller is preparing your item.")
+            shipment.save(update_fields=["tracking_events", "updated_at"])
+        if new_status == Order.Status.RETURN_REQUESTED:
+            _append_tracking(shipment, "RETURN_REQUESTED", "Return requested for this order.")
+            shipment.save(update_fields=["tracking_events", "updated_at"])
+        if new_status == Order.Status.RETURNED:
+            _append_tracking(shipment, "RETURNED", "Item returned to seller.")
+            shipment.save(update_fields=["tracking_events", "updated_at"])
+        if new_status == Order.Status.REFUNDED:
+            _append_tracking(shipment, "REFUNDED", "Refund completed for this order.")
             shipment.save(update_fields=["tracking_events", "updated_at"])
 
     cancelled = new_status == Order.Status.CANCELLED
     locked.status = new_status
-    locked.save(update_fields=["status", "payment_status", "updated_at"])
+    update_fields = ["status", "payment_status", "updated_at"]
+    if cancelled and locked.cancel_reason:
+        update_fields.append("cancel_reason")
+    locked.save(update_fields=update_fields)
     if cancelled and by_admin:
         title = "Order cancelled by support"
         message = f"Order {locked.order_number} was cancelled."
+        if locked.cancel_reason:
+            message = f"{message} Reason: {locked.cancel_reason}"
     elif cancelled:
         title = "Order cancelled"
         message = f"Order {locked.order_number} was cancelled."
+        if locked.cancel_reason:
+            message = f"{message} Reason: {locked.cancel_reason}"
     else:
         title = "Order update"
         message = f"Order {locked.order_number} is now {new_status.replace('_', ' ').title()}."

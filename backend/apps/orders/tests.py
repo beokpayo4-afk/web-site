@@ -436,11 +436,20 @@ class OrderManagementTests(CheckoutAPITestCase):
         self.add_to_cart(quantity=1)
         pending = self.client.post("/api/v1/orders/", {"shipping_address_id": address["id"]}, format="json")
         self.assertEqual(pending.status_code, 201)
-        cancelled = self.client.post(f"/api/v1/orders/{pending.data['id']}/cancel/", format="json")
+        cancelled = self.client.post(
+            f"/api/v1/orders/{pending.data['id']}/cancel/",
+            {"cancel_reason": "Ordered by mistake"},
+            format="json",
+        )
         self.assertEqual(cancelled.status_code, 200)
         self.assertEqual(cancelled.data["status"], "CANCELLED")
         self.assertEqual(cancelled.data["payment_status"], "FAILED")
-        again = self.client.post(f"/api/v1/orders/{pending.data['id']}/cancel/", format="json")
+        self.assertEqual(cancelled.data["cancel_reason"], "Ordered by mistake")
+        again = self.client.post(
+            f"/api/v1/orders/{pending.data['id']}/cancel/",
+            {"cancel_reason": "Ordered by mistake"},
+            format="json",
+        )
         self.assertEqual(again.status_code, 400)
 
         self.add_to_cart(quantity=1)
@@ -453,10 +462,23 @@ class OrderManagementTests(CheckoutAPITestCase):
             },
             format="json",
         )
-        paid_cancel = self.client.post(f"/api/v1/orders/{paid_order.data['id']}/cancel/", format="json")
+        paid_cancel = self.client.post(
+            f"/api/v1/orders/{paid_order.data['id']}/cancel/",
+            {"cancel_reason": "Changed my mind"},
+            format="json",
+        )
         self.assertEqual(paid_cancel.status_code, 200)
         self.assertEqual(paid_cancel.data["status"], "CANCELLED")
         self.assertEqual(paid_cancel.data["payment_status"], "PAID")
+
+    def test_cancel_requires_reason(self):
+        self.auth()
+        address = self.add_address()
+        self.add_to_cart(quantity=1)
+        pending = self.client.post("/api/v1/orders/", {"shipping_address_id": address["id"]}, format="json")
+        self.assertEqual(pending.status_code, 201)
+        missing = self.client.post(f"/api/v1/orders/{pending.data['id']}/cancel/", {}, format="json")
+        self.assertEqual(missing.status_code, 400)
 
     def test_cannot_cancel_after_shipped(self):
         from rest_framework.exceptions import ValidationError
@@ -466,8 +488,12 @@ class OrderManagementTests(CheckoutAPITestCase):
         self.auth()
         user = User.objects.get(email="buyer@nexora.local")
         order = self.make_order(user, status=Order.Status.SHIPPED, payment_status=Order.PaymentStatus.PAID)
-        blocked = self.client.post(f"/api/v1/orders/{order.id}/cancel/", format="json")
+        blocked = self.client.post(
+            f"/api/v1/orders/{order.id}/cancel/",
+            {"cancel_reason": "Changed my mind"},
+            format="json",
+        )
         self.assertEqual(blocked.status_code, 400)
         with self.assertRaises(ValidationError):
-            cancel_order(order)
+            cancel_order(order, reason="Changed my mind")
 

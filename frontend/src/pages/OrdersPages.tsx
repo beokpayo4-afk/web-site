@@ -2,7 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
-import { OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from '@/components/orders/OrderStatus'
+import {
+  OrderStatusBadge,
+  OrderTrackingCard,
+  PaymentStatusBadge,
+} from '@/components/orders/OrderStatus'
 import { CatalogPagination } from '@/components/product/CatalogPagination'
 import { QueryError } from '@/components/storefront/Section'
 import { Button } from '@/components/ui/Button'
@@ -55,6 +59,9 @@ export function OrderDetailsPage() {
   const order = useQuery({ queryKey: ['order', id], queryFn: () => commerceService.order(Number(id)) })
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelOther, setCancelOther] = useState('')
 
   if (order.isLoading) return <p className="text-sm text-ink-soft">Loading order…</p>
   if (order.isError) {
@@ -72,23 +79,49 @@ export function OrderDetailsPage() {
 
   const data = order.data
   const shipping = data.shipping_address
+  const paymentNote = data.customer_notes?.startsWith('Payment method:')
+    ? data.customer_notes.replace(/^Payment method:\s*/, '')
+    : null
+  const resolvedReason = cancelReason === 'Other' ? cancelOther.trim() : cancelReason
+
+  async function submitCancel() {
+    if (resolvedReason.length < 3) {
+      setError('Please choose or enter a cancellation reason.')
+      return
+    }
+    try {
+      setError('')
+      setPending(true)
+      await commerceService.cancelOrder(data.id, resolvedReason)
+      setCancelOpen(false)
+      setCancelReason('')
+      setCancelOther('')
+      setPending(false)
+      void queryClient.invalidateQueries({ queryKey: ['order', id] })
+      void queryClient.invalidateQueries({ queryKey: ['orders'] })
+    } catch (err) {
+      setError(getErrorMessage(err, 'This order could not be cancelled.'))
+      setPending(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader kicker={data.order_number} title={formatStatus(data.status)}>
         <PaymentStatusBadge status={data.payment_status} />
       </PageHeader>
-      <OrderTimeline status={data.status} />
+
+      <OrderTrackingCard order={data} />
 
       <Card>
         <h2 className="font-semibold">Items</h2>
         {data.items.map((item) => (
-          <div key={item.id} className="flex justify-between gap-3 py-2 text-sm">
+          <div key={item.id} className="flex justify-between gap-3 border-b border-line py-3 text-sm last:border-0">
             <span>
               {item.product_name} × {item.quantity}
               <span className="mt-0.5 block text-xs text-ink-soft">SKU {item.sku}</span>
             </span>
-            <span>{formatMoney(item.line_total)}</span>
+            <span className="font-medium">{formatMoney(item.line_total)}</span>
           </div>
         ))}
         <dl className="mt-4 space-y-1 border-t border-line pt-3 text-sm">
@@ -123,8 +156,9 @@ export function OrderDetailsPage() {
         <Card>
           <h2 className="font-semibold">Payment</h2>
           <p className="mt-2 text-sm">
-            Order payment status: <span className="font-semibold">{formatStatus(data.payment_status)}</span>
+            Status: <span className="font-semibold">{formatStatus(data.payment_status)}</span>
           </p>
+          {paymentNote ? <p className="mt-1 text-sm text-ink-soft">Method: {paymentNote}</p> : null}
           {data.payments.length ? (
             <ul className="mt-3 space-y-2 text-sm">
               {data.payments.map((payment) => (
@@ -145,60 +179,96 @@ export function OrderDetailsPage() {
         </Card>
       </div>
 
-      {data.shipment ? (
+      {data.status === 'CANCELLED' && data.cancel_reason ? (
         <Card>
-          <h2 className="font-semibold">Shipment tracking</h2>
-          <p className="mt-2 text-sm">
-            {data.shipment.carrier} · {data.shipment.tracking_number}
-          </p>
-          <p className="text-sm text-ink-soft">{formatStatus(data.shipment.status)}</p>
-          {data.shipment.estimated_delivery ? (
-            <p className="text-sm text-ink-soft">Estimated delivery {formatDate(data.shipment.estimated_delivery)}</p>
-          ) : null}
-          {data.shipment.tracking_events.length ? (
-            <ol className="mt-4 space-y-3 border-l border-line pl-4">
-              {data.shipment.tracking_events.map((event) => (
-                <li key={`${event.at}-${event.status}`}>
-                  <p className="text-sm font-semibold">{formatStatus(event.status)}</p>
-                  <p className="text-sm text-ink-soft">{event.note}</p>
-                  <p className="text-xs text-ink-soft">{formatDate(event.at)}</p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="mt-3 text-sm text-ink-soft">Tracking updates will appear here once the parcel moves.</p>
-          )}
+          <h2 className="font-semibold">Cancellation reason</h2>
+          <p className="mt-2 text-sm text-ink-soft">{data.cancel_reason}</p>
         </Card>
       ) : null}
 
       {error ? <Alert>{error}</Alert> : null}
       {data.cancellable ? (
-        <Button
-          variant="danger"
-          disabled={pending}
-          onClick={async () => {
-            try {
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="danger"
+            disabled={pending}
+            onClick={() => {
               setError('')
-              setPending(true)
-              await commerceService.cancelOrder(data.id)
-              await queryClient.invalidateQueries({ queryKey: ['order', id] })
-              await queryClient.invalidateQueries({ queryKey: ['orders'] })
-            } catch (err) {
-              setError(getErrorMessage(err, 'This order could not be cancelled.'))
-            } finally {
-              setPending(false)
-            }
-          }}
-        >
-          {pending ? 'Cancelling…' : 'Cancel order'}
-        </Button>
+              setCancelOpen(true)
+            }}
+          >
+            Cancel order
+          </Button>
+        </div>
       ) : null}
+
+      {cancelOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-4 sm:items-center"
+          role="presentation"
+          onClick={() => !pending && setCancelOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-order-title"
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="cancel-order-title" className="font-display text-xl">
+              Why cancel this order?
+            </h2>
+            <p className="mt-1 text-sm text-ink-soft">Tell us the reason so we can improve your next order.</p>
+            <div className="mt-4 space-y-2">
+              {CANCEL_REASONS.map((reason) => (
+                <label key={reason} className="flex cursor-pointer items-center gap-3 rounded-xl border border-line px-3 py-2 text-sm hover:bg-paper-2">
+                  <input
+                    type="radio"
+                    name="cancel-reason"
+                    value={reason}
+                    checked={cancelReason === reason}
+                    onChange={() => setCancelReason(reason)}
+                  />
+                  <span>{reason}</span>
+                </label>
+              ))}
+            </div>
+            {cancelReason === 'Other' ? (
+              <textarea
+                className="mt-3 w-full rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-pine"
+                rows={3}
+                placeholder="Share a short reason…"
+                value={cancelOther}
+                onChange={(event) => setCancelOther(event.target.value)}
+              />
+            ) : null}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button variant="danger" disabled={pending || resolvedReason.length < 3} onClick={() => void submitCancel()}>
+                {pending ? 'Cancelling…' : 'Confirm cancellation'}
+              </Button>
+              <Button variant="ghost" disabled={pending} onClick={() => setCancelOpen(false)}>
+                Keep order
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Link to="/account/orders" className="inline-block text-sm font-semibold text-pine">
         Back to orders
       </Link>
     </div>
   )
 }
+
+const CANCEL_REASONS = [
+  'Ordered by mistake',
+  'Found a better price elsewhere',
+  'Delivery taking too long',
+  'Need to change address or items',
+  'Changed my mind',
+  'Other',
+] as const
 
 function AddressBlock({ address }: { address: Partial<Address> | null }) {
   if (!address) return <p className="mt-2 text-sm text-ink-soft">No address on this order.</p>
